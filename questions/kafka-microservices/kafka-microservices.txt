@@ -1,0 +1,7 @@
+FCAT Java Microservices (Kafka) — Eliassen Group Assessment
+15 questions | 70 minutes | End: Saturday 24-Jan-2026 12:41 PM EST
+
+STUDY FILES (this folder):
+- STUDY-GUIDE.md      — Full concepts (Kafka, Spring Kafka, event-driven microservices)
+- PRACTICE-QUESTIONS.md — 20 exam-style Q&A (cover answers, then self-test)
+- CHEAT-SHEET.md      — Quick reference for last-minute review

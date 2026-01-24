@@ -1,0 +1,40 @@
+JRE vs JDK vs JVM
+
+JVM (Java Virtual Machine)
+- Runs Java bytecode (.class files)
+- Platform-specific (Windows JVM, Linux JVM, etc.)
+- Part of both JRE and JDK
+
+JRE (Java Runtime Environment)
+- JVM + libraries needed to RUN Java programs
+- Includes: JVM, core libraries (java.lang, java.util, etc.)
+- You need this to run Java apps, but NOT to compile them
+
+JDK (Java Development Kit)
+- JRE + tools to DEVELOP Java programs
+- Includes: JRE + compiler (javac), debugger, documentation tools
+- You need this to write and compile Java code
+
+Example:
+┌─────────────────────────────────┐
+│         JDK                     │
+│  ┌───────────────────────────┐  │
+│  │         JRE               │  │
+│  │  ┌─────────────────────┐  │  │
+│  │  │        JVM          │  │  │
+│  │  └─────────────────────┘  │  │
+│  │  + Core Libraries         │  │
+│  └───────────────────────────┘  │
+│  + javac (compiler)             │
+│  + jar, javadoc, etc.          │
+└─────────────────────────────────┘
+
+Real-world analogy:
+- JVM = Engine (runs the car)
+- JRE = Car (can drive it)
+- JDK = Car + Tools (can build and drive it)
+
+Practical:
+- End user running a Java app → needs JRE
+- Developer writing Java code → needs JDK
+- JDK always includes JRE (you get both!)
