@@ -1,0 +1,5 @@
+10+ years building production backend systems. Currently at EY (5+ years) developing AI-powered applications for financial services—production RAG systems, multi-agent workflows, and knowledge management platforms using AWS (Bedrock, OpenSearch), Python, FastAPI, and modern LLM orchestration frameworks.
+
+Strong foundation in backend engineering (Java, Spring Boot, Python, FastAPI) with production experience across AWS serverless architectures, microservices, and event-driven systems. AWS Certified: Developer, Data Engineer, AI Practitioner.
+
+Open to backend engineering roles with AI/ML focus. Authorized to work in the US (H1B, I-140 approved).

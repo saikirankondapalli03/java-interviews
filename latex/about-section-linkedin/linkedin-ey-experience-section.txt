@@ -1,0 +1,22 @@
+**Senior Backend Engineer**
+**EY** · Full-time
+Nov 2020 – Present · 5 yrs 3 mos
+Hoboken, New Jersey, United States · On-site
+
+**Insurance - Cybersecurity Engineering:**
+• Built production RAG system for cybersecurity knowledge management using AWS Bedrock Agents (Claude 3 Sonnet) with Bedrock Knowledge Base backed by OpenSearch Serverless; implemented 5 Lambda action groups for policy queries, compliance checks, and threat intelligence; provisioned AWS infrastructure via Terraform with GitHub Actions CI/CD.
+
+• Extended system with multi-agent orchestration using LangChain/LangGraph StateGraph supervisor pattern; built custom LangChain tools with Pydantic validation and DynamoDB conversation memory; optimized retrieval with Bedrock Knowledge Base (Titan embeddings) and integrated Bedrock Guardrails.
+
+• Developed production API layer using FastAPI with Pydantic models and OpenAPI documentation; integrated DynamoDB (pay-per-request, GSIs) for conversation state and configured API Gateway rate limiting.
+
+• Implemented sidecar-based secret credential injection in Spring Boot using CyberArk; built Python pipeline aggregating data from Wiz, Snyk, and vendor APIs with Angular dashboard.
+
+**Wealth Asset Management (WAM):**
+• Engineered serverless, event-driven microservices for Fidelity's Direct Indexing Platform using AWS Lambda, SQS, EventBridge, S3, Step Functions, API Gateway; built Terraform for AWS infrastructure achieving consistent uptime and faster deployments.
+
+• Implemented SQLAlchemy ORM data modeling for PostgreSQL, establishing entity relationships and optimizing query performance.
+
+• Built file processing workflows for Fidelity Agency Lending using Spring Boot and Amazon EKS, streamlining S3 feed handling via Amazon SNS.
+
+• Led migration from Tibco to Apache Kafka for Order Routing and Executions using FIX protocol; implemented VeriFIX simulation framework for isolated integration testing.

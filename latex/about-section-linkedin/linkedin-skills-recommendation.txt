@@ -1,0 +1,100 @@
+LINKEDIN SKILLS RECOMMENDATION
+================================
+
+OPTIMAL COUNT: 35-40 skills
+(LinkedIn allows 50, but 35-40 is the sweet spot for ATS and recruiter scanning)
+
+PRIORITY 1 - MUST HAVE (AI/ML Focus - Top 15):
+-----------------------------------------------
+1. Python (Programming Language)
+2. Java
+3. AWS Bedrock
+4. LangChain
+5. Retrieval-Augmented Generation (RAG)
+6. OpenAI API
+7. LangGraph
+8. AWS Lambda
+9. FastAPI
+10. Spring Boot
+11. Terraform
+12. PostgreSQL
+13. DynamoDB
+14. Microservices
+15. Serverless Computing
+
+PRIORITY 2 - HIGHLY RECOMMENDED (Backend + Cloud - Next 12):
+-------------------------------------------------------------
+16. AWS API Gateway
+17. Amazon S3
+18. AWS Step Functions
+19. Apache Kafka
+20. Docker
+21. Kubernetes
+22. GitHub Actions
+23. CI/CD
+24. SQL
+25. MongoDB
+26. OpenSearch
+27. Event-Driven Architecture
+28. DevOps
+
+PRIORITY 3 - VALUABLE ADDITIONS (Tools & Frameworks - Next 8-10):
+------------------------------------------------------------------
+29. SQLAlchemy
+30. Pydantic
+31. AWS SQS
+32. EventBridge
+33. Hibernate
+34. Maven
+35. pytest
+36. AngularJS (or Angular)
+37. Elasticsearch
+38. Jenkins
+
+PRIORITY 4 - OPTIONAL (If space allows - 3-5):
+----------------------------------------------
+39. Domain-Driven Design
+40. CQRS
+41. Spring Cloud
+42. Kafka Streams
+43. Ansible
+44. Datadog (if you use it)
+
+REMOVE/REPLACE THESE (if currently in your list):
+-------------------------------------------------
+- "Wealth and Asset Management" (not a technical skill)
+- "Managemenet" (typo)
+- "Modernization" (too vague)
+- "Request for Proposal (RFP)" (not a technical skill)
+- "Software Solutions" (too generic)
+- "Software Development" (too generic)
+- "Technical Design" (covered by Architecture skills)
+- "Software Implementation" (too generic)
+- "Resiliency" (covered by Architecture patterns)
+- "Data Strategies" (too vague)
+- "Analytical Skills" (soft skill, not technical)
+- "Scrum" (methodology, not technical skill)
+- "Agile Methodologies" (methodology, not technical skill)
+
+KEY RECOMMENDATIONS:
+-------------------
+1. Keep 35-40 skills total for optimal ATS scanning
+2. Prioritize skills that appear in your resume
+3. Use exact LinkedIn skill names (e.g., "Python (Programming Language)" not just "Python")
+4. Group related skills but avoid duplicates
+5. Focus on technologies recruiters search for (AWS Bedrock, LangChain, RAG, etc.)
+6. Ensure skills align with your Experience section keywords
+
+SKILLS TO ADD (if not already present):
+---------------------------------------
+- AWS Bedrock (critical for AI roles)
+- LangChain (critical for AI roles)
+- LangGraph (critical for AI roles)
+- Retrieval-Augmented Generation (RAG) (critical for AI roles)
+- FastAPI (mentioned in resume)
+- DynamoDB (mentioned in resume)
+- OpenSearch Serverless (if available as a skill)
+- StateGraph (if available as a skill)
+- Pydantic (if available as a skill)
+- Bedrock Agents (if available as a skill)
+- Bedrock Knowledge Base (if available as a skill)
