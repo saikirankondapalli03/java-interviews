@@ -1,0 +1,126 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{enumitem}
+\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue]{hyperref}
+\usepackage{titlesec}
+\usepackage{tabularx}
+\usepackage{array}
+
+% Remove page numbers
+\pagestyle{empty}
+
+% Section formatting
+\titleformat{\section}
+  {\centering\Large\bfseries\uppercase}
+  {}
+  {0em}
+  {}
+  [\titlerule]
+
+\titlespacing{\section}{0pt}{12pt}{6pt}
+
+% Custom commands
+\newcommand{\resumeItem}[1]{\item[]\small{#1}}
+\newcommand{\resumeItemList}[1]{\begin{itemize}[leftmargin=0.5in, itemsep=0.1em, parsep=0pt, partopsep=0pt, topsep=0.15em, label={}, labelsep=0pt]
+    \small
+    #1
+\end{itemize}}
+
+% Header
+\newcommand{\resumeHeader}[4]{
+    \begin{center}
+        {\Huge\bfseries #1}\\[0.5cm]
+        #2 \quad $\diamond$ \quad #3\\[0.2cm]
+        #4
+    \end{center}
+}
+
+\begin{document}
+
+% Header Section
+\resumeHeader{Sai Kiran Kondapalli}
+{+1-210-844-6711}
+{Hoboken, NJ, USA}
+{\href{mailto:saikirankondapalli03@gmail.com}{saikirankondapalli03@gmail.com} \quad $\diamond$ \quad \href{https://www.linkedin.com/in/saikirankondapalli}{LinkedIn} \quad $\diamond$ \quad \href{https://github.com/saikirankondapalli}{GitHub}}
+
+% Summary Section
+\section{Summary}
+\small\raggedright{Certified AWS Engineer and Senior Software Developer with 10+ years of experience in microservices architecture, cloud infrastructure (AWS), and event-driven systems. Expert in Java, Spring Boot, Python, Fast API, Apache Kafka, Kubernetes, AWS Lambda, Terraform, and serverless development. Led large-scale Kafka migrations, built production RAG systems with AI/LLM integration, and implemented Infrastructure as Code (IaC) for multi-account AWS architectures. Proven track record in building scalable pub/sub pipelines, API-driven microservices, security solutions and CI/CD automation.}
+
+% Education Section
+\section{Education}
+\textbf{Stevens Institute of Technology, Hoboken, NJ, USA} \hfill \textit{May 2020}\\
+\textit{Master of Science in Computer Science and Software Engineering}
+
+% Technical Skills Section
+\section{Technical Skills}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+    \textbf{Programming Languages:} & Java, Java multithreading, Python\\
+    \textbf{Middleware \& Streaming:} & Kafka, SQS, ActiveMQ, Spark\\
+    \textbf{API Architecture:} & Rest API, GraphQL, gRPC, SOAP\\
+    \textbf{Cloud Technologies:} & AWS (Lambda, SQS, API Gateway, Parameters Store, Event Bridge, Step Functions, EKS, Secrets Manager, IAM, KMS, Route 53), Pivotal Cloud Foundry\\
+    \textbf{Project Management:} & Jira, Agile, Scrum\\
+    \textbf{Java Frameworks:} & Spring Boot, Spring Cloud, Spring Web Flux, Spring Transactions\\
+    \textbf{Frontend Technologies:} & Angular 17\\
+    \textbf{ORM Tools:} & Hibernate, JPA, SQL Alchemy\\
+    \textbf{Databases:} & Oracle, PostgreSQL, MongoDB, DynamoDB\\
+    \textbf{CI/CD and IaC Tools:} & Jenkins, Kubernetes, Docker, GitLab, Ansible, Maven, Gradle, Terraform\\
+    \textbf{Architecture:} & Microservices, Domain Driven Design\\
+\end{tabularx}
+\renewcommand{\arraystretch}{1}
+
+% Certifications Section
+\section{Certifications}
+\begin{center}
+    AWS Developer \quad $\diamond$ \quad AWS Data Engineer \quad $\diamond$ \quad AWS AI Practitioner
+\end{center}
+
+% Professional Experience Section
+\section{Professional Experience}
+
+\textbf{Ernst And Young US LLP, Hoboken, New Jersey:} \textit{Senior Software Developer} \hfill \textit{Nov 2020 -- Current}\\[0.1em]
+
+\textbf{Client: TIAA Senior Backend Engineer:} \hfill \textit{Dec 2024 -- Current}
+\resumeItemList{
+    \resumeItem{\textbf{API Security Engineering:} Designed and implemented sidecar-based secret credential injection in Spring Boot by retrieving the secrets from CyberArk enabling secure secret seeding without deployment.}
+    \resumeItem{\textbf{Security Governance Dashboard:} Built Python data integration pipeline aggregating security data from Wiz, Snyk, and multiple vendor APIs. Developed Angular dashboard with application-level issue summaries to improve security governance and risk management.}
+    \resumeItem{\textbf{Production RAG System:} Developed a RAG platform for cybersecurity documentation using Airflow and Docling for document ingestion, hybrid search (BM25 + vector embeddings) in AWS OpenSearch and Fast API endpoints with LLM for Q\&A with source citations.}
+}
+
+\vspace{0.2em}
+\textbf{Client: Fidelity Investments Senior Backend Engineer (Business unit: FI):} \hfill \textit{Jan 2021 -- Dec 2024}
+\resumeItemList{
+    \resumeItem{\textbf{AWS Serverless Implementation:} Designed and developed serverless, event-driven microservices for Fidelity's Direct Indexing Platform Account opening platform using AWS Lambda, SQS, Event Bridge, S3, Step Functions, API Gateway, and ALB, orchestrating account lifecycle and improving system scalability.}
+    \resumeItem{\textbf{Cloud Infrastructure Management:} Built and set up Terraform components along with CI/CD for AWS IAM, Step function, Lambda, Secrets Manager, Parameter Store, and API Gateway for all environments.}
+    \resumeItem{\textbf{Database Optimization:} Implemented data modeling in SQL Alchemy ORM for establishing relationships between entities for tables created in PostgreSQL.}
+    \resumeItem{\textbf{Microservices Deployment:} Architected file processing workflows for Fidelity Agency Lending Business using Spring Boot and deployed the app to Amazon EKS. Streamlined S3 feed handling from multiple intermediaries, leveraging Amazon SNS for orchestration.}
+    \resumeItem{\textbf{Order Processing Applications Migration:} Led migration of Order Routing and Executions applications from Tibco to Apache Kafka and optimized processing of Limit Orders and Market Orders and Bid Wanted Orders in Brokerage Services (FBSI) that uses FIX protocol.}
+    \resumeItem{\textbf{Continuous Integration Enhancement:} Implemented FIX message simulation using VeriFIX for Order Execution applications, isolating external dependencies and improved integration testing efficiency and reduced regression issues.}
+}
+
+\vspace{0.2em}
+\textbf{Client: Bank of America Senior Backend Engineer} \hfill \textit{Nov 2020 -- Dec 2020}
+\resumeItemList{
+    \resumeItem{Designed and developed file processing non-linear workflows for KYC system in Apache Camel, Spring Boot, Java, and AWS.}
+}
+
+\vspace{0.3em}
+\textbf{Colaberry Inc, New Jersey, USA:} \textit{Senior Software Developer} \hfill \textit{June 2020 -- Nov 2020}
+\resumeItemList{
+    \resumeItem{\textbf{API Development \& CQRS:} Engineered Spring Boot APIs using CQRS pattern to monitor warehouse order processing activities and automate third-party updates using Kafka, enhancing e-commerce order fulfillment efficiency.}
+    \resumeItem{\textbf{Omnichannel Retail Integration:} Implemented microservices to achieve BOPS (Buy Online Pickup in Store) and BOSS (Buy Online Ship from Store) functionality, achieving 99.8\% order accuracy through real-time UPS integration and event-driven lifecycle management.}
+    \resumeItem{\textbf{Inventory Optimization:} Designed a location hierarchy system with Spring Boot and Hibernate, generating GS1-compliant barcodes for 50,000+ locations and integrated order delivery to these lockers for customer pickup.}
+    \resumeItem{\textbf{Real-Time Data Processing:} Built a real-time pipeline with Kafka Streams and KSQL to process invoices and inventory data, exposing insights via RESTful APIs, improving data visibility by 40\% and decision-making speed.}
+}
+
+\vspace{0.3em}
+\textbf{Previous Experience:} \textit{Senior Software Developer} \hfill \textit{June 2013 -- Jan 2019}
+\resumeItemList{
+    \resumeItem{\textbf{Software Engineering Roles:} Held various software engineering positions at Deloitte USI India (2017-2018), Zensar Technologies India (2016-2018) and Mahindra Comviva (2013-2016) India specializing in full-stack application development using Angular 4 and Spring Boot. Focused on diverse aspects of software engineering, including design, development, and deployment.}
+    \resumeItem{\textbf{Cloud Services Mocking and Cloud Development Tools:} Utilized Local Stack to mimic AWS cloud services such as Systems Manager (SSM), Secrets Manager, and AWS Lambda, enabling efficient local development of cloud applications.}
+    \resumeItem{\textbf{Microservices Architecture:} Worked on the redesign of a monolithic application into microservices architecture using Spring Boot and deployed to Spring Boot by adhering to the 12-factor app methodology.}
+}
+
+\end{document}
