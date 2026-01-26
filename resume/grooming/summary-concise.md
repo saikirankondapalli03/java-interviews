@@ -1,0 +1,3 @@
+# Resume Summary - ATS Optimized & Recruiter-Friendly
+
+Certified AWS Engineer and Senior Software Developer/Application Architect with 10+ years of experience in microservices architecture, cloud infrastructure (AWS), and event-driven systems. Expert in Java, Spring Boot, Python, FastAPI, Node.js, Apache Kafka, Kubernetes, AWS Lambda, Terraform, and serverless development. Led large-scale Kafka migrations, built production RAG systems with AI/LLM integration, and implemented Infrastructure as Code (IaC) for multi-account AWS architectures. Proven track record in building scalable pub/sub pipelines, API-driven microservices, security solutions (CyberArk), and CI/CD automation.

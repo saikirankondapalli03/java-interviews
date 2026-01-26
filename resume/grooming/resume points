@@ -1,0 +1,15 @@
+**Java Back End Developer - Zensar Technologies (Aug 2016 - Mar 2018)**
+
+Built RESTful APIs and backend systems for a Supply Chain Management platform using Java, Spring, Hibernate, and JBoss EAP-6.4. Integrated multiple microservices (order management, work management, location management) and exposed APIs for mobile/handheld devices. Implemented comprehensive testing with JUnit and PowerMockito, and monitored application metrics using JMX APIs and ELK stack.
+
+**Consultant - Deloitte (Apr 2018 - Jan 2019)**
+
+Architected and developed Spring Boot microservices with Kafka for asynchronous messaging and Oracle database integration. Built RESTful APIs consumed by Angular front-end applications and managed CI/CD pipelines on PCF with blue-green deployments. Developed Node.js integration services connecting SAP (HANA, Hybris) with Salesforce, using Kafka for message transformation. Implemented performance monitoring with ELK stack, DynaTrace, and JMeter, following Agile and TDD methodologies.
+
+**[Job Title] - Bayer Crop Science ([Date Range])**
+
+Engineered developer productivity tools to solve local development challenges in a microservices architecture. Implemented LocalStack to mock AWS services (SSM, Secrets Manager, Lambda) and developed a Java proxy component that intercepts and auto-records microservice request/response patterns, generating WireMock stubs deployed in Docker containers. This solution decoupled local development from production blue/green environments, enabling developers to work offline with realistic service mocks.
+
+**Senior Backend Engineer - EY (Nov 2020 - Present)**
+
+Architected serverless event-driven microservices using AWS Lambda, SQS, EventBridge, Step Functions, and API Gateway, with Infrastructure as Code implemented via Terraform. Led migration from Tibco to Apache Kafka for order processing applications, implementing FIX protocol-based workflows for brokerage services. Built security solutions including CyberArk-integrated credential injection in Spring Boot, Python security data pipelines, and a production RAG system using Airflow, AWS OpenSearch, and FastAPI with LLM integration. Architected file processing workflows with Spring Boot on Amazon EKS and Apache Camel, orchestrating multi-source S3 feeds.

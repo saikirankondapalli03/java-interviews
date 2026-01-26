@@ -1,0 +1,1298 @@
+# CyberArk Property Injection in Spring Boot - Complete Guide
+
+## Overview
+This document explains how Spring Boot integrates with CyberArk to inject secrets as properties accessible via `@Value` annotations. We'll cover all the Spring concepts involved and how they work together.
+
+---
+
+## 1. Spring PropertySource and Environment
+
+### What is a PropertySource in Spring?
+
+A **PropertySource** is Spring's abstraction for a source of key-value pairs (properties). Spring uses PropertySources to resolve property values when you use `@Value` annotations or access the `Environment`.
+
+**Key PropertySource Types:**
+- `MapPropertySource` - Wraps a Map<String, Object>
+- `PropertiesPropertySource` - Wraps a Properties object
+- `SystemEnvironmentPropertySource` - System environment variables
+- `SystemPropertiesPropertySource` - System properties (-D flags)
+- `CommandLinePropertySource` - Command-line arguments
+
+**Example:**
+```java
+// Creating a PropertySource from a Map
+Map<String, Object> secrets = new HashMap<>();
+secrets.put("db.password", "secret123");
+secrets.put("api.key", "key456");
+
+PropertySource<?> propertySource = new MapPropertySource("cyberark-secrets", secrets);
+```
+
+### How does ConfigurableEnvironment manage multiple PropertySources?
+
+The `ConfigurableEnvironment` maintains an ordered list of PropertySources. When resolving a property, Spring searches through PropertySources in order until it finds the property.
+
+**PropertySource Order (highest to lowest priority):**
+1. Command-line arguments (`--property=value`)
+2. System properties (`-Dproperty=value`)
+3. Environment variables
+4. Application properties files (application.properties, application.yml)
+5. Default properties
+
+**Example:**
+```java
+@Configuration
+public class CyberArkConfig {
+    
+    @Autowired
+    private ConfigurableEnvironment environment;
+    
+    public void addPropertySource() {
+        // Get existing property sources
+        MutablePropertySources propertySources = environment.getPropertySources();
+        
+        // Create CyberArk secrets PropertySource
+        Map<String, Object> secrets = loadSecretsFromCyberArk();
+        PropertySource<?> cyberArkSource = new MapPropertySource("cyberark", secrets);
+        
+        // Add it to the environment
+        propertySources.addFirst(cyberArkSource); // Highest priority
+        // OR
+        propertySources.addLast(cyberArkSource);  // Lowest priority
+        // OR
+        propertySources.addBefore("systemProperties", cyberArkSource); // Specific position
+    }
+}
+```
+
+### What does addFirst() do and why is priority important?
+
+`addFirst()` adds a PropertySource at the **beginning** of the list, giving it the **highest priority**. This means Spring will check this PropertySource first when resolving properties.
+
+**Why Priority Matters:**
+- **Override behavior**: Higher priority sources can override lower priority ones
+- **Security**: Secrets from CyberArk should override any default values
+- **Performance**: More frequently accessed sources should be checked first
+
+**Example:**
+```java
+// application.properties
+db.password=default-password
+
+// CyberArk PropertySource (added with addFirst())
+db.password=cyberark-secret-123
+
+// Result: @Value("${db.password}") resolves to "cyberark-secret-123"
+// because CyberArk PropertySource has higher priority
+```
+
+**Priority Resolution Flow:**
+```
+1. Check CyberArk PropertySource (addFirst) → Found! Return "cyberark-secret-123"
+2. If not found, check System Properties
+3. If not found, check Environment Variables
+4. If not found, check application.properties → Would find "default-password"
+5. If not found, throw IllegalArgumentException
+```
+
+### How does @Value annotation resolve properties from PropertySources?
+
+The `@Value` annotation uses Spring's `PropertySourcesPlaceholderConfigurer` (or `PropertySourcesPlaceholderConfigurer` in newer versions) to resolve placeholders.
+
+**Resolution Process:**
+1. Spring scans for `@Value` annotations during bean creation
+2. Extracts the placeholder expression (e.g., `${db.password}`)
+3. Queries the `Environment` (which contains all PropertySources)
+4. Environment searches PropertySources in priority order
+5. Returns the first matching value or throws exception if not found
+
+**Example:**
+```java
+@Component
+public class DatabaseConfig {
+    
+    @Value("${db.password}")
+    private String dbPassword;  // Resolved from PropertySources
+    
+    @Value("${db.host:localhost}")  // Default value if not found
+    private String dbHost;
+    
+    @Value("${db.port:#{8080}}")  // SpEL expression as default
+    private int dbPort;
+}
+```
+
+**Behind the Scenes:**
+```java
+// Spring internally does something like:
+String propertyName = "db.password";
+String value = environment.getProperty(propertyName);
+// environment.getProperty() searches all PropertySources in order
+```
+
+---
+
+## 2. Bean Lifecycle and Initialization
+
+### What is the Spring Bean Lifecycle?
+
+The Spring bean lifecycle consists of several phases from instantiation to destruction:
+
+**Complete Bean Lifecycle:**
+1. **Instantiation** - Create bean instance (constructor)
+2. **Populate Properties** - Inject dependencies via `@Autowired`, `@Value`, etc.
+3. **BeanNameAware.setBeanName()** - Set bean name
+4. **BeanFactoryAware.setBeanFactory()** - Set BeanFactory reference
+5. **ApplicationContextAware.setApplicationContext()** - Set ApplicationContext reference
+6. **BeanPostProcessor.postProcessBeforeInitialization()** - Pre-initialization hooks
+7. **@PostConstruct** - Custom initialization method
+8. **InitializingBean.afterPropertiesSet()** - Interface-based initialization
+9. **Custom init-method** - XML/annotation-based init method
+10. **BeanPostProcessor.postProcessAfterInitialization()** - Post-initialization hooks
+11. **Bean Ready** - Bean is fully initialized and ready to use
+12. **@PreDestroy** - Cleanup before destruction
+13. **DisposableBean.destroy()** - Interface-based cleanup
+14. **Custom destroy-method** - XML/annotation-based destroy method
+
+**Visual Timeline:**
+```
+Application Start
+    ↓
+@Configuration classes processed
+    ↓
+@Bean methods executed
+    ↓
+Bean Instantiation (Constructor)
+    ↓
+Dependency Injection (@Autowired, @Value)
+    ↓
+@PostConstruct methods
+    ↓
+Bean Ready
+    ↓
+Application Running
+    ↓
+@PreDestroy methods
+    ↓
+Application Shutdown
+```
+
+### When does @Configuration get processed?
+
+`@Configuration` classes are processed during the **ApplicationContext refresh phase**, which happens early in Spring Boot startup, **before** most beans are created.
+
+**Processing Order:**
+1. Spring Boot application starts
+2. `ApplicationContext` is created
+3. `@Configuration` classes are discovered via component scanning
+4. `@Configuration` classes are parsed and `@Bean` methods are registered
+5. Bean definitions are created (but beans not yet instantiated)
+6. Beans are instantiated and initialized
+
+**Example:**
+```java
+@Configuration
+@ComponentScan(basePackages = {"com.myapp", "org.tiaa.quark.secret.agent.config"})
+public class AppConfig {
+    
+    // This method is registered as a bean definition early,
+    // but the method body executes when the bean is first requested
+    @Bean
+    public MyService myService() {
+        return new MyService();
+    }
+}
+```
+
+### When do @Bean methods execute?
+
+`@Bean` methods execute when:
+1. The bean is **first requested** (lazy initialization by default in `@Configuration`)
+2. Or during eager initialization if the bean is a dependency of another bean being created
+3. The method is called by Spring's CGLIB proxy (not directly)
+
+**Important:** `@Bean` methods in `@Configuration` classes are **intercepted by CGLIB** to ensure singleton behavior - the method is only called once, and subsequent calls return the cached bean.
+
+**Example:**
+```java
+@Configuration
+public class Config {
+    
+    @Bean
+    public ServiceA serviceA() {
+        System.out.println("Creating ServiceA");  // Executes when ServiceA bean is needed
+        return new ServiceA();
+    }
+    
+    @Bean
+    public ServiceB serviceB() {
+        System.out.println("Creating ServiceB");  // Executes when ServiceB bean is needed
+        // If ServiceB depends on ServiceA, ServiceA is created first
+        return new ServiceB(serviceA());  // serviceA() returns cached instance
+    }
+}
+```
+
+### What is @PostConstruct and when does it run?
+
+`@PostConstruct` is a JSR-250 annotation that marks a method to be executed **after** dependency injection is complete but **before** the bean is fully ready for use.
+
+**When @PostConstruct Runs:**
+- After constructor execution
+- After all `@Autowired` fields are injected
+- After all `@Value` fields are resolved
+- Before the bean is returned to the caller
+- Only once per bean instance
+
+**Use Cases:**
+- Initialize fields that depend on injected dependencies
+- Perform validation
+- Start background threads
+- Load data from external sources
+- Register callbacks
+
+**Example:**
+```java
+@Component
+public class CyberArkPropertyLoader {
+    
+    @Autowired
+    private ConfigurableEnvironment environment;
+    
+    @Autowired
+    private CyberArkService cyberArkService;  // Injected first
+    
+    private Map<String, String> secrets;  // Will be initialized in @PostConstruct
+    
+    // Constructor runs first
+    public CyberArkPropertyLoader() {
+        // cyberArkService is null here!
+        // secrets is null here!
+    }
+    
+    // @PostConstruct runs after @Autowired injection
+    @PostConstruct
+    public void loadSecrets() {
+        // cyberArkService is now available!
+        secrets = cyberArkService.retrieveSecrets();
+        
+        // Add to environment so @Value can resolve them
+        MapPropertySource propertySource = new MapPropertySource("cyberark", secrets);
+        environment.getPropertySources().addFirst(propertySource);
+    }
+}
+```
+
+### What's the difference between constructor, @PostConstruct, and ApplicationContextInitializer?
+
+**Constructor:**
+- Runs **first** in bean lifecycle
+- Dependencies are **not yet injected** (`@Autowired` fields are null)
+- Use for: basic initialization, final fields, immutable objects
+- Cannot access `@Autowired` dependencies
+
+**@PostConstruct:**
+- Runs **after** dependency injection
+- All `@Autowired` and `@Value` fields are **available**
+- Use for: initialization that depends on injected dependencies
+- Can access all injected dependencies
+- Runs **per bean instance**
+
+**ApplicationContextInitializer:**
+- Runs **very early** - before `@Configuration` processing
+- Runs **before** any beans are created
+- Cannot use `@Autowired` (no beans exist yet)
+- Must be registered explicitly
+- Use for: early environment setup, property source registration
+- Runs **once per application**
+
+**Timeline Comparison:**
+```
+Application Start
+    ↓
+ApplicationContextInitializer.initialize()  ← EARLIEST
+    ↓
+@Configuration processing
+    ↓
+Bean Constructor  ← Dependencies NOT injected yet
+    ↓
+Dependency Injection (@Autowired, @Value)
+    ↓
+@PostConstruct  ← Dependencies ARE injected
+    ↓
+Bean Ready
+```
+
+**Example:**
+```java
+// ApplicationContextInitializer - TOO EARLY for @Autowired
+public class CyberArkInitializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
+    @Override
+    public void initialize(ConfigurableApplicationContext applicationContext) {
+        // No @Autowired available here!
+        // Must manually get beans or use different approach
+        ConfigurableEnvironment env = applicationContext.getEnvironment();
+        // Can add PropertySources, but can't use @Autowired services
+    }
+}
+
+// @PostConstruct - PERFECT for @Autowired
+@Component
+public class CyberArkPropertyLoader {
+    @Autowired
+    private CyberArkService service;  // Available in @PostConstruct
+    
+    @PostConstruct
+    public void init() {
+        // service is available here!
+        service.loadSecrets();
+    }
+}
+```
+
+---
+
+## 3. Dependency Injection
+
+### How does @Autowired work?
+
+`@Autowired` tells Spring to automatically inject a dependency by:
+1. **Type matching** - Find a bean of the matching type
+2. **Name matching** (if multiple candidates) - Match by field/parameter name
+3. **Qualifier** - Use `@Qualifier` to specify which bean if multiple exist
+4. **Required vs Optional** - `@Autowired(required=false)` allows null
+
+**Injection Points:**
+- **Field injection** - Directly on fields
+- **Constructor injection** - In constructor parameters (recommended)
+- **Setter injection** - In setter methods
+- **Method injection** - In any method parameters
+
+**Example:**
+```java
+@Component
+public class MyService {
+    
+    // Field injection
+    @Autowired
+    private Repository repository;
+    
+    // Constructor injection (recommended - enables immutability and testing)
+    private final AnotherService anotherService;
+    
+    @Autowired
+    public MyService(AnotherService anotherService) {
+        this.anotherService = anotherService;
+    }
+    
+    // Setter injection
+    private ConfigService configService;
+    
+    @Autowired
+    public void setConfigService(ConfigService configService) {
+        this.configService = configService;
+    }
+    
+    // Method injection
+    @Autowired
+    public void configure(ConfigService config, Logger logger) {
+        // Both parameters are injected
+    }
+}
+```
+
+**Resolution Process:**
+```java
+// When Spring sees @Autowired
+1. Get the type of the field/parameter (e.g., CyberArkService)
+2. Search ApplicationContext for a bean of that type
+3. If found, inject it
+4. If not found and required=true, throw NoSuchBeanDefinitionException
+5. If not found and required=false, inject null
+```
+
+### What is the Supplier<T> pattern and why use it for credentials?
+
+`Supplier<T>` is a functional interface from `java.util.function` that represents a function that takes no arguments and returns a value. It enables **lazy evaluation** - the value is computed only when `get()` is called.
+
+**Why Use Supplier for Credentials:**
+1. **Lazy Loading** - Credentials are fetched only when needed, not at startup
+2. **Refresh Capability** - Can re-fetch credentials on each call
+3. **Error Handling** - Failures happen at usage time, not initialization time
+4. **Testing** - Easy to mock with `() -> "test-credential"`
+5. **Security** - Credentials aren't stored in memory until needed
+
+**Example:**
+```java
+// Without Supplier - Eager loading
+@Component
+public class DatabaseConfig {
+    private String password;  // Loaded at startup, stays in memory
+    
+    @PostConstruct
+    public void init() {
+        password = cyberArkService.getSecret("db.password");  // Fetched once
+    }
+}
+
+// With Supplier - Lazy loading
+@Component
+public class DatabaseConfig {
+    private Supplier<String> passwordSupplier;  // Function, not value
+    
+    @PostConstruct
+    public void init() {
+        passwordSupplier = () -> cyberArkService.getSecret("db.password");
+        // Secret not fetched yet!
+    }
+    
+    public void connect() {
+        String password = passwordSupplier.get();  // Fetched NOW, when needed
+        // Can call get() multiple times to refresh
+    }
+}
+```
+
+**CyberArk Integration Example:**
+```java
+@Service
+public class CyberArkService {
+    
+    // Returns a Supplier that fetches credential on demand
+    public Supplier<String> getCredentialSupplier(String secretId) {
+        return () -> {
+            // This code runs only when get() is called
+            try {
+                Credential credential = cyberArkClient.retrieve(secretId);
+                return credential.getPassword();
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to fetch credential", e);
+            }
+        };
+    }
+}
+
+// Usage
+@Component
+public class MyService {
+    @Autowired
+    private CyberArkService cyberArkService;
+    
+    private Supplier<String> dbPasswordSupplier;
+    
+    @PostConstruct
+    public void init() {
+        dbPasswordSupplier = cyberArkService.getCredentialSupplier("db-password-id");
+    }
+    
+    public void connect() {
+        String password = dbPasswordSupplier.get();  // Fetched lazily
+    }
+}
+```
+
+### When are @Autowired dependencies injected?
+
+Dependencies are injected **after** the bean is instantiated (constructor called) but **before** `@PostConstruct` methods run.
+
+**Injection Timeline:**
+```
+1. Bean instantiation (constructor called)
+   ↓
+2. @Autowired field injection
+   ↓
+3. @Autowired setter/method injection
+   ↓
+4. @Value property resolution
+   ↓
+5. @PostConstruct methods
+   ↓
+6. Bean ready
+```
+
+**Example:**
+```java
+@Component
+public class ExampleBean {
+    
+    @Autowired
+    private ServiceA serviceA;  // Injected after constructor
+    
+    @Autowired
+    private ServiceB serviceB;  // Injected after constructor
+    
+    // Constructor runs FIRST - dependencies are null here
+    public ExampleBean() {
+        System.out.println("Constructor: serviceA = " + serviceA);  // null
+    }
+    
+    // Dependencies injected HERE (between constructor and @PostConstruct)
+    
+    // @PostConstruct runs AFTER injection - dependencies are available
+    @PostConstruct
+    public void init() {
+        System.out.println("PostConstruct: serviceA = " + serviceA);  // Not null!
+        serviceA.doSomething();  // Works!
+    }
+}
+```
+
+### What happens if a dependency is null?
+
+If a required dependency cannot be found:
+- Spring throws `NoSuchBeanDefinitionException` during application startup
+- The application fails to start
+- This is a **fail-fast** approach
+
+**Handling Missing Dependencies:**
+```java
+// Option 1: Make dependency optional
+@Autowired(required = false)
+private OptionalService optionalService;  // Can be null
+
+// Option 2: Use Optional<T>
+@Autowired
+private Optional<OptionalService> optionalService;  // Empty if not found
+
+// Option 3: Use @Nullable
+@Autowired
+@Nullable
+private OptionalService optionalService;  // Explicitly nullable
+
+// Option 4: Check in @PostConstruct
+@PostConstruct
+public void init() {
+    if (optionalService != null) {
+        optionalService.doSomething();
+    }
+}
+```
+
+**Example Error:**
+```
+Caused by: org.springframework.beans.factory.NoSuchBeanDefinitionException: 
+No qualifying bean of type 'com.example.CyberArkService' available: 
+expected at least 1 bean which qualifies as autowire candidate.
+```
+
+---
+
+## 4. Component Scanning
+
+### What does @ComponentScan do?
+
+`@ComponentScan` tells Spring where to look for components (classes annotated with `@Component`, `@Service`, `@Repository`, `@Controller`, `@Configuration`, etc.) to register as beans.
+
+**Default Behavior:**
+- Without `@ComponentScan`, Spring only scans the package containing the `@SpringBootApplication` class
+- `@SpringBootApplication` includes `@ComponentScan` with default settings
+
+**Example:**
+```java
+@SpringBootApplication
+// Equivalent to:
+// @Configuration
+// @EnableAutoConfiguration
+// @ComponentScan  // Scans current package and sub-packages
+public class Application {
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+}
+```
+
+**Custom Component Scanning:**
+```java
+@Configuration
+@ComponentScan(
+    basePackages = {
+        "com.myapp",                    // Your application packages
+        "org.tiaa.quark.secret.agent.config"  // External CyberArk plugin package
+    },
+    basePackageClasses = {CyberArkConfig.class},  // Alternative: use a class as marker
+    includeFilters = @Filter(type = FilterType.ANNOTATION, classes = Component.class),
+    excludeFilters = @Filter(type = FilterType.REGEX, pattern = ".*Test.*")
+)
+public class AppConfig {
+}
+```
+
+### How does Spring discover and register beans?
+
+Spring uses **reflection** to scan classes and register them as beans:
+
+**Discovery Process:**
+1. **Scan packages** - Read all `.class` files in specified packages
+2. **Check annotations** - Look for `@Component`, `@Service`, etc.
+3. **Create bean definitions** - Register class as a bean candidate
+4. **Process metadata** - Read `@Autowired`, `@Value`, `@PostConstruct`, etc.
+5. **Instantiate beans** - Create instances when needed (lazy or eager)
+6. **Inject dependencies** - Resolve and inject `@Autowired` dependencies
+7. **Initialize** - Call `@PostConstruct` methods
+
+**Example:**
+```java
+// Spring finds this class during component scanning
+@Component
+public class MyService {
+    // Spring registers this as a bean definition
+    // When needed, Spring will:
+    // 1. Call constructor: new MyService()
+    // 2. Inject @Autowired dependencies
+    // 3. Call @PostConstruct methods
+    // 4. Return the bean
+}
+```
+
+### What's the difference between @Component, @Service, @Repository, @Controller?
+
+All these annotations are **meta-annotated** with `@Component`, meaning they're all treated as components. The differences are **semantic** - they indicate the intended use:
+
+**@Component:**
+- Generic Spring-managed component
+- Use for: Utility classes, helpers, general components
+
+**@Service:**
+- Business logic layer
+- Use for: Service classes, business operations
+- Semantically indicates a service
+
+**@Repository:**
+- Data access layer
+- Use for: DAOs, data repositories
+- Enables exception translation (SQLException → DataAccessException)
+
+**@Controller / @RestController:**
+- Presentation layer
+- Use for: Web controllers, REST endpoints
+- Enables request mapping
+
+**All are functionally equivalent:**
+```java
+@Component
+public class MyComponent { }  // Works
+
+@Service
+public class MyService { }  // Also works, same as @Component
+
+@Repository
+public class MyRepository { }  // Also works, same as @Component
+
+@Controller
+public class MyController { }  // Also works, same as @Component
+```
+
+**Best Practice:** Use the most specific annotation for clarity and future Spring features.
+
+### Why do we need to scan external packages (org.tiaa.quark.secret.agent.config)?
+
+The CyberArk plugin classes are in a **different package** than your application. By default, Spring only scans the package containing `@SpringBootApplication` and its sub-packages.
+
+**Problem:**
+```java
+// Your application
+package com.myapp;
+@SpringBootApplication  // Scans com.myapp.* only
+public class Application { }
+
+// CyberArk plugin (external)
+package org.tiaa.quark.secret.agent.config;
+@Component
+public class CyberArkConfig { }  // NOT scanned by default!
+```
+
+**Solution:**
+```java
+@SpringBootApplication
+@ComponentScan(basePackages = {
+    "com.myapp",
+    "org.tiaa.quark.secret.agent.config"  // Explicitly include external package
+})
+public class Application { }
+```
+
+**Why This Matters:**
+- CyberArk plugin provides `@Configuration` classes that set up beans
+- These beans are needed for `@Autowired` to work
+- Without scanning, Spring doesn't know these classes exist
+- Result: `NoSuchBeanDefinitionException` when trying to autowire CyberArk services
+
+---
+
+## 5. The Integration Flow
+
+### Explain the complete flow from application startup to @Value working
+
+**Complete Startup Flow:**
+
+```
+1. APPLICATION START
+   SpringApplication.run(Application.class, args)
+   ↓
+
+2. CREATE APPLICATION CONTEXT
+   AnnotationConfigApplicationContext created
+   ↓
+
+3. COMPONENT SCANNING
+   - Scan packages specified in @ComponentScan
+   - Find @Component, @Service, @Configuration classes
+   - Find CyberArkConfig in org.tiaa.quark.secret.agent.config
+   - Register bean definitions (not yet instantiated)
+   ↓
+
+4. PROCESS @CONFIGURATION CLASSES
+   - Parse @Bean methods
+   - Register bean definitions
+   - Create CGLIB proxies for @Configuration classes
+   ↓
+
+5. INSTANTIATE BEANS (EAGER)
+   - Start creating singleton beans
+   - Call constructors
+   - Dependencies not yet injected
+   ↓
+
+6. DEPENDENCY INJECTION
+   - Inject @Autowired fields
+   - Resolve @Value placeholders
+   - BUT: CyberArk secrets not yet loaded!
+   - @Value("${db.password}") would fail here if not in application.properties
+   ↓
+
+7. @POSTCONSTRUCT METHODS
+   - CyberArkPropertyLoader.@PostConstruct runs
+   - Calls CyberArkService to fetch secrets
+   - Creates MapPropertySource with secrets
+   - Adds PropertySource to Environment with addFirst()
+   ↓
+
+8. BEAN READY
+   - All beans initialized
+   - PropertySources available
+   - @Value can now resolve CyberArk secrets
+   ↓
+
+9. APPLICATION RUNNING
+   - Controllers, services ready
+   - @Value annotations work
+   - Secrets available from PropertySources
+```
+
+**Detailed Code Flow:**
+
+```java
+// Step 1: Application starts
+@SpringBootApplication
+@ComponentScan(basePackages = {"com.myapp", "org.tiaa.quark.secret.agent.config"})
+public class Application {
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+}
+
+// Step 2: CyberArk plugin configuration (discovered via component scan)
+package org.tiaa.quark.secret.agent.config;
+
+@Configuration
+public class CyberArkConfig {
+    @Bean
+    public CyberArkService cyberArkService() {
+        return new CyberArkService();
+    }
+}
+
+// Step 3: Your property loader (discovered via component scan)
+package com.myapp;
+
+@Component
+public class CyberArkPropertyLoader {
+    
+    @Autowired
+    private ConfigurableEnvironment environment;  // Injected in step 6
+    
+    @Autowired
+    private CyberArkService cyberArkService;  // Injected in step 6
+    
+    @PostConstruct  // Executes in step 7
+    public void loadSecrets() {
+        // Fetch secrets from CyberArk
+        Map<String, String> secrets = cyberArkService.retrieveSecrets();
+        
+        // Create PropertySource
+        MapPropertySource propertySource = new MapPropertySource("cyberark", secrets);
+        
+        // Add to environment (highest priority)
+        environment.getPropertySources().addFirst(propertySource);
+        
+        // Now @Value can resolve these properties!
+    }
+}
+
+// Step 4: Your service using @Value
+@Component
+public class DatabaseService {
+    
+    @Value("${db.password}")  // Resolved in step 6 (if in app.properties) 
+                               // or step 7+ (if from CyberArk)
+    private String dbPassword;
+    
+    @PostConstruct
+    public void init() {
+        // dbPassword is available here
+        System.out.println("DB Password: " + dbPassword);
+    }
+}
+```
+
+### Why can't we use ApplicationContextInitializer with @Autowired?
+
+`ApplicationContextInitializer` runs **too early** - before any beans are created, so `@Autowired` doesn't work.
+
+**Timeline Problem:**
+```
+ApplicationContextInitializer.initialize()
+    ↓
+(No beans exist yet!)
+    ↓
+@Configuration processing
+    ↓
+Bean creation
+    ↓
+@Autowired injection
+```
+
+**Failed Attempt:**
+```java
+// THIS DOESN'T WORK!
+public class CyberArkInitializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
+    
+    @Autowired  // ❌ DOESN'T WORK - no beans exist yet!
+    private CyberArkService cyberArkService;
+    
+    @Override
+    public void initialize(ConfigurableApplicationContext context) {
+        // cyberArkService is null!
+        // Cannot use @Autowired here
+    }
+}
+```
+
+**Why It Fails:**
+- `ApplicationContextInitializer` is called before the ApplicationContext is fully initialized
+- No bean definitions are processed yet
+- No dependency injection has occurred
+- `@Autowired` requires the ApplicationContext to be ready
+
+### How does the @PostConstruct approach solve the timing issue?
+
+`@PostConstruct` runs **after** beans are created and dependencies are injected, making it perfect for this use case.
+
+**Timeline with @PostConstruct:**
+```
+Bean instantiation
+    ↓
+@Autowired injection (CyberArkService available!)
+    ↓
+@PostConstruct (Can use @Autowired dependencies!)
+    ↓
+Add PropertySource to Environment
+    ↓
+Other beans can now use @Value with CyberArk secrets
+```
+
+**Working Solution:**
+```java
+@Component
+public class CyberArkPropertyLoader {
+    
+    @Autowired  // ✅ WORKS - injected before @PostConstruct
+    private CyberArkService cyberArkService;
+    
+    @Autowired  // ✅ WORKS
+    private ConfigurableEnvironment environment;
+    
+    @PostConstruct  // ✅ Runs after @Autowired injection
+    public void loadSecrets() {
+        // cyberArkService is available here!
+        Map<String, String> secrets = cyberArkService.retrieveSecrets();
+        
+        MapPropertySource propertySource = new MapPropertySource("cyberark", secrets);
+        environment.getPropertySources().addFirst(propertySource);
+    }
+}
+```
+
+**Why This Works:**
+1. `CyberArkPropertyLoader` bean is created
+2. `@Autowired` fields are injected (CyberArkService, Environment)
+3. `@PostConstruct` runs - all dependencies are available
+4. PropertySource is added to Environment
+5. Other beans' `@Value` annotations can now resolve CyberArk properties
+
+### Why does MapPropertySource need to be added to environment for @Value to work?
+
+`@Value` resolution works by querying the `Environment`, which contains all PropertySources. If the PropertySource isn't in the Environment, `@Value` can't find the property.
+
+**How @Value Resolution Works:**
+```java
+// When Spring sees @Value("${db.password}")
+// It internally does:
+String value = environment.getProperty("db.password");
+
+// environment.getProperty() searches all PropertySources:
+for (PropertySource<?> source : environment.getPropertySources()) {
+    Object value = source.getProperty("db.password");
+    if (value != null) {
+        return value;  // Found it!
+    }
+}
+// If not found in any PropertySource, throw exception or use default
+```
+
+**Without Adding to Environment:**
+```java
+// This doesn't work:
+Map<String, String> secrets = new HashMap<>();
+secrets.put("db.password", "secret123");
+// Secrets exist in memory, but @Value doesn't know about them!
+
+@Component
+public class MyService {
+    @Value("${db.password}")  // ❌ Fails - not in Environment
+    private String password;
+}
+```
+
+**With Adding to Environment:**
+```java
+// This works:
+Map<String, String> secrets = new HashMap<>();
+secrets.put("db.password", "secret123");
+MapPropertySource propertySource = new MapPropertySource("cyberark", secrets);
+environment.getPropertySources().addFirst(propertySource);
+// Now @Value can find it!
+
+@Component
+public class MyService {
+    @Value("${db.password}")  // ✅ Works - found in Environment
+    private String password;  // = "secret123"
+}
+```
+
+**The Connection:**
+```
+CyberArk Secrets
+    ↓
+MapPropertySource
+    ↓
+Environment.getPropertySources()
+    ↓
+@Value annotation queries Environment
+    ↓
+Property resolved!
+```
+
+---
+
+## 6. Design Patterns Used
+
+### Supplier Pattern for Lazy Credential Loading
+
+**Pattern:** Functional interface that provides values on-demand
+
+**Benefits:**
+- **Lazy Evaluation** - Credentials fetched only when needed
+- **Refresh Capability** - Can re-fetch on each call
+- **Error Isolation** - Failures at usage time, not startup
+- **Testability** - Easy to mock
+
+**Implementation:**
+```java
+@Service
+public class CyberArkService {
+    
+    public Supplier<String> getCredentialSupplier(String secretId) {
+        return () -> {
+            // Executed only when get() is called
+            Credential cred = cyberArkClient.retrieve(secretId);
+            return cred.getPassword();
+        };
+    }
+}
+
+// Usage
+@Component
+public class DatabaseConfig {
+    private Supplier<String> passwordSupplier;
+    
+    @PostConstruct
+    public void init() {
+        passwordSupplier = cyberArkService.getCredentialSupplier("db-password");
+        // No network call yet!
+    }
+    
+    public void connect() {
+        String password = passwordSupplier.get();  // Fetched NOW
+    }
+}
+```
+
+### Adapter Pattern (Converting Credential to PropertySource)
+
+**Pattern:** Converts one interface (Credential) to another (PropertySource) that clients expect
+
+**Implementation:**
+```java
+// CyberArk returns Credential objects
+public class Credential {
+    private String username;
+    private String password;
+    // ...
+}
+
+// Spring expects PropertySource
+public class MapPropertySource extends PropertySource<Map<String, Object>> {
+    // ...
+}
+
+// Adapter: Convert Credential → PropertySource
+@Component
+public class CyberArkPropertyLoader {
+    
+    @PostConstruct
+    public void loadSecrets() {
+        // 1. Get Credentials from CyberArk (one format)
+        List<Credential> credentials = cyberArkService.retrieveAll();
+        
+        // 2. Convert to Map (adapter step)
+        Map<String, Object> properties = new HashMap<>();
+        for (Credential cred : credentials) {
+            properties.put(cred.getKey(), cred.getValue());
+        }
+        
+        // 3. Wrap in PropertySource (adapter step)
+        PropertySource<?> propertySource = new MapPropertySource("cyberark", properties);
+        
+        // 4. Spring can now use it (expected format)
+        environment.getPropertySources().addFirst(propertySource);
+    }
+}
+```
+
+**Why It's an Adapter:**
+- CyberArk provides credentials in one format
+- Spring expects PropertySource format
+- Adapter converts between the two formats
+- Client code (@Value) doesn't need to know about the conversion
+
+### Separation of Concerns (Service, Config, Loader Layers)
+
+**Pattern:** Divide responsibilities into distinct layers
+
+**Layer 1: Service Layer (CyberArkService)**
+- **Responsibility:** Communicate with CyberArk API
+- **Concerns:** Network calls, authentication, error handling
+- **Does NOT know about:** Spring, PropertySources, @Value
+
+```java
+@Service
+public class CyberArkService {
+    public Credential retrieveSecret(String id) {
+        // CyberArk API communication
+        return cyberArkClient.get(id);
+    }
+}
+```
+
+**Layer 2: Configuration Layer (CyberArkConfig)**
+- **Responsibility:** Define beans and Spring configuration
+- **Concerns:** Bean creation, dependency setup
+- **Does NOT know about:** Property loading, @Value resolution
+
+```java
+@Configuration
+public class CyberArkConfig {
+    @Bean
+    public CyberArkClient cyberArkClient() {
+        return new CyberArkClient();
+    }
+    
+    @Bean
+    public CyberArkService cyberArkService(CyberArkClient client) {
+        return new CyberArkService(client);
+    }
+}
+```
+
+**Layer 3: Loader Layer (CyberArkPropertyLoader)**
+- **Responsibility:** Bridge CyberArk and Spring PropertySources
+- **Concerns:** PropertySource creation, Environment integration
+- **Knows about:** Both CyberArkService and Spring Environment
+
+```java
+@Component
+public class CyberArkPropertyLoader {
+    @Autowired
+    private CyberArkService service;  // Uses service layer
+    
+    @Autowired
+    private ConfigurableEnvironment environment;  // Uses Spring layer
+    
+    @PostConstruct
+    public void loadSecrets() {
+        // Orchestrates: Service → PropertySource → Environment
+        Credential cred = service.retrieveSecret("db.password");
+        MapPropertySource source = new MapPropertySource("cyberark", map);
+        environment.getPropertySources().addFirst(source);
+    }
+}
+```
+
+**Benefits:**
+- **Testability** - Each layer can be tested independently
+- **Maintainability** - Changes to CyberArk API only affect service layer
+- **Reusability** - Service layer can be used without Spring
+- **Clarity** - Each class has a single, clear responsibility
+
+---
+
+## Complete Example Implementation
+
+Here's a complete, working example that demonstrates all concepts:
+
+```java
+// 1. CyberArk Service Layer
+@Service
+public class CyberArkService {
+    private final CyberArkClient client;
+    
+    @Autowired
+    public CyberArkService(CyberArkClient client) {
+        this.client = client;
+    }
+    
+    public Map<String, String> retrieveSecrets(List<String> secretIds) {
+        Map<String, String> secrets = new HashMap<>();
+        for (String id : secretIds) {
+            Credential cred = client.retrieve(id);
+            secrets.put(cred.getPropertyKey(), cred.getValue());
+        }
+        return secrets;
+    }
+    
+    public Supplier<String> getCredentialSupplier(String secretId) {
+        return () -> {
+            Credential cred = client.retrieve(secretId);
+            return cred.getValue();
+        };
+    }
+}
+
+// 2. Property Loader (Adapter + Orchestrator)
+@Component
+public class CyberArkPropertyLoader {
+    
+    @Autowired
+    private ConfigurableEnvironment environment;
+    
+    @Autowired
+    private CyberArkService cyberArkService;
+    
+    @Value("${cyberark.secret.ids:}")  // Comma-separated list
+    private String secretIds;
+    
+    @PostConstruct
+    public void loadSecrets() {
+        try {
+            // Parse secret IDs
+            List<String> ids = Arrays.asList(secretIds.split(","));
+            
+            // Retrieve secrets from CyberArk
+            Map<String, String> secrets = cyberArkService.retrieveSecrets(ids);
+            
+            // Convert to PropertySource (Adapter Pattern)
+            MapPropertySource propertySource = new MapPropertySource(
+                "cyberark-secrets", 
+                new HashMap<>(secrets)
+            );
+            
+            // Add to Environment with highest priority
+            environment.getPropertySources().addFirst(propertySource);
+            
+            logger.info("Loaded {} secrets from CyberArk", secrets.size());
+        } catch (Exception e) {
+            logger.error("Failed to load CyberArk secrets", e);
+            throw new RuntimeException("CyberArk initialization failed", e);
+        }
+    }
+}
+
+// 3. Usage in Application Code
+@Component
+public class DatabaseConfig {
+    
+    @Value("${db.password}")  // Resolved from CyberArk PropertySource
+    private String dbPassword;
+    
+    @Value("${db.username}")  // Resolved from CyberArk PropertySource
+    private String dbUsername;
+    
+    @Autowired
+    private CyberArkService cyberArkService;
+    
+    private Supplier<String> apiKeySupplier;
+    
+    @PostConstruct
+    public void init() {
+        // Lazy credential loading with Supplier pattern
+        apiKeySupplier = cyberArkService.getCredentialSupplier("api-key-id");
+    }
+    
+    public void connect() {
+        // Use @Value injected property
+        String url = "jdbc:postgresql://localhost/mydb";
+        Connection conn = DriverManager.getConnection(url, dbUsername, dbPassword);
+    }
+    
+    public void callApi() {
+        // Use Supplier for lazy loading
+        String apiKey = apiKeySupplier.get();  // Fetched on-demand
+        // Make API call with apiKey
+    }
+}
+
+// 4. Configuration
+@SpringBootApplication
+@ComponentScan(basePackages = {
+    "com.myapp",
+    "org.tiaa.quark.secret.agent.config"  // External CyberArk package
+})
+public class Application {
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+}
+```
+
+---
+
+## Summary
+
+**Key Takeaways:**
+
+1. **PropertySource** - Spring's abstraction for property storage; `@Value` queries PropertySources via Environment
+2. **Bean Lifecycle** - Constructor → @Autowired → @PostConstruct → Ready; timing matters!
+3. **@PostConstruct** - Perfect for initialization that needs @Autowired dependencies
+4. **Component Scanning** - Must explicitly scan external packages (like CyberArk plugin)
+5. **Environment Integration** - PropertySources must be added to Environment for @Value to work
+6. **Design Patterns** - Supplier (lazy loading), Adapter (Credential→PropertySource), Separation of Concerns
+
+**The Flow:**
+```
+Startup → Component Scan → Bean Creation → @Autowired → @PostConstruct → 
+Load CyberArk Secrets → Create PropertySource → Add to Environment → 
+@Value Can Now Resolve Properties → Application Ready
+```
+
+This architecture ensures that CyberArk secrets are available as Spring properties while maintaining clean separation of concerns and proper lifecycle management.

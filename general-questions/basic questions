@@ -1,0 +1,3 @@
+Architected a unified event streaming framework that delivered real-time
+data from diverse sources to customer-facing applications via a single GraphQL endpoint, simplifying consumption of services like quotes, news,
+and alerts across multiple channels
