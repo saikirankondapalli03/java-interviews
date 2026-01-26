@@ -7,6 +7,7 @@
 \usepackage{tabularx}
 \usepackage{array}
 \usepackage{needspace}
+\usepackage{ragged2e}
 
 % Page numbers at bottom center
 \pagestyle{plain}
@@ -22,9 +23,9 @@
 \titlespacing{\section}{0pt}{12pt}{8pt}
 
 % Custom commands for better readability with visible bullets
-\newcommand{\resumeItem}[1]{\item\small{#1}}
+\newcommand{\resumeItem}[1]{\item\small\justifying{#1}}
 \newcommand{\resumeItemList}[1]{\begin{itemize}[leftmargin=0.5in, itemsep=0.25em, parsep=0pt, partopsep=0pt, topsep=0.25em]
-    \small
+    \sloppy
     #1
 \end{itemize}}
 
@@ -40,17 +41,17 @@
 \begin{document}
 
 % Prevent hyphenation of important technical terms
-\hyphenation{Secrets-Manager Step-Functions RAG-system vector-embeddings API-Gateway Spring-Boot CI-CD}
+\hyphenation{Secrets-Manager Step-Functions RAG-system vector-embeddings API-Gateway Spring-Boot CI-CD LangChain LangGraph StateGraph OpenAI Bedrock Bedrock-Agents Knowledge-Base Bedrock-Guardrails OpenSearch-Serverless DynamoDB Pydantic ConversationBufferMemory production-ready}
 
 % Header Section
 \resumeHeader{Sai Kiran Kondapalli}
 {+1-210-844-6711}
-{Jersey City, NJ, USA}
+{Hoboken, NJ, USA}
 {\href{mailto:saikirankondapalli03@gmail.com}{saikirankondapalli03@gmail.com} \quad $\diamond$ \quad \href{https://www.linkedin.com/in/saikirankondapalli}{LinkedIn} \quad $\diamond$ \quad \href{https://github.com/saikirankondapalli}{GitHub}}
 
 % Summary Section - Optimized for recruiters
 \section{Summary}
-\small\raggedright{\textbf{AWS-certified} Senior Software Engineer with \textbf{10+ years} of experience designing and building enterprise \textbf{microservices}, \textbf{event-driven architectures}, and \textbf{serverless} applications. Core expertise in \textbf{Java, Spring Boot, Python, Kafka, AWS, Kubernetes}. Built production \textbf{RAG system} with \textbf{AI/LLM} integration, implemented \textbf{Infrastructure as Code} with \textbf{Terraform}, and led large-scale \textbf{Kafka} migrations. Strong background in \textbf{API security}, \textbf{distributed systems}, and \textbf{CI/CD} automation.}
+\small\raggedright{\textbf{AWS-certified} Senior Software Engineer with \textbf{10+ years} of backend engineering experience and production expertise in \textbf{AI/ML applications}. Specialized in building \textbf{production RAG systems} and \textbf{multi-agent workflows} using \textbf{AWS Bedrock Agents}, \textbf{LangChain/LangGraph}, and \textbf{vector search}. Strong foundation in \textbf{Python, Java, Spring Boot, FastAPI, AWS Lambda, DynamoDB} for building \textbf{production-ready AI infrastructure} with \textbf{Terraform} and \textbf{CI/CD} pipelines.}
 
 % Technical Skills Section - ATS-optimized, recruiter-friendly
 \section{Technical Skills}
@@ -58,11 +59,12 @@
 \begin{tabularx}{\textwidth}{@{}lX@{}}
     \textbf{Languages:} & Java, Python, SQL, Shell Scripting\\
     \textbf{Frameworks:} & Spring Boot, Spring Cloud, Spring WebFlux, FastAPI, Angular\\
-    \textbf{Cloud \& DevOps:} & AWS (Lambda, EKS, S3, SQS, API~Gateway, EventBridge, Step~Functions, Secrets~Manager, IAM, KMS), Terraform, Kubernetes, Docker, Jenkins, GitLab~CI/CD\\
+    \textbf{AI/ML \& LLM:} & RAG (Retrieval-Augmented Generation), OpenAI API, AWS Bedrock (Agents, Knowledge Base, Claude 3 Sonnet, Guardrails, Titan Embeddings), LangChain, LangGraph, StateGraph, OpenSearch Serverless\\
+    \textbf{Cloud \& DevOps:} & AWS (Lambda, EKS, S3, SQS, API~Gateway, EventBridge, Step~Functions, Secrets~Manager, IAM, KMS, OpenSearch, OpenSearch~Serverless, Bedrock, Bedrock~Agents, Bedrock~Knowledge~Base, Bedrock~Guardrails), Terraform, Kubernetes, Docker, Jenkins, GitLab~CI/CD, GitHub~Actions\\
     \textbf{Messaging \& Streaming:} & Apache Kafka, Kafka Streams, KSQL, SQS, SNS, ActiveMQ\\
-    \textbf{Databases:} & PostgreSQL, Oracle, MongoDB, DynamoDB, OpenSearch/Elasticsearch\\
-    \textbf{Architecture:} & Microservices, Event-Driven Architecture, Domain-Driven Design, CQRS, Serverless\\
-    \textbf{Tools:} & Maven, Gradle, Ansible, Hibernate, JPA, SQLAlchemy, Airflow, VeriFIX\\
+    \textbf{Databases:} & PostgreSQL, Oracle, MongoDB, DynamoDB (GSIs, Pay-per-Request), OpenSearch/Elasticsearch, OpenSearch~Serverless\\
+    \textbf{Architecture:} & Microservices, Event-Driven Architecture, Domain-Driven Design, CQRS, Serverless, AI/ML Pipelines, Multi-Agent Systems, RAG Pipelines\\
+    \textbf{Tools:} & Maven, Gradle, Ansible, Hibernate, JPA, SQLAlchemy, VeriFIX, Pydantic, pytest, Bandit, Safety\\
 \end{tabularx}
 \renewcommand{\arraystretch}{1}
 
@@ -80,11 +82,12 @@
 
 \needspace{5\baselineskip}
 \textbf{Client: TIAA} \hfill \textit{Dec 2024 -- Present}\\
-\textit{Senior Backend Engineer - Cybersecurity API Engineering}
+\textit{Senior Backend \& AI Engineer - Cybersecurity API Engineering}
 \resumeItemList{
-    \resumeItem{\textbf{Architected CyberArk sidecar pattern} for zero-trust secret injection in \textbf{Spring Boot microservices}; eliminated hardcoded credentials and enabled secure rotation without redeployment}
-    \resumeItem{\textbf{Built security governance platform} using \textbf{Python~ETL~pipelines} (aggregating \textbf{Wiz, Snyk} data); developed \textbf{Angular} dashboard for displaying summary of security posture visibility for all applications}
-    \resumeItem{\textbf{Built backend services} for RAG system: \textbf{Airflow} data ingestion pipeline, \textbf{AWS~OpenSearch} search backend (BM25 + vector~embeddings), and \textbf{FastAPI} endpoints for \textbf{LLM} integration}
+    \resumeItem{\textbf{Built production RAG system} for cybersecurity knowledge management using \textbf{AWS~Bedrock~Agents} (\textbf{Claude~3~Sonnet}) with \textbf{Bedrock~Knowledge~Base} backed by \textbf{OpenSearch~Serverless} for semantic search over security documentation; implemented \textbf{5~Lambda} action groups for policy queries, compliance checks, and threat intelligence; provisioned and deployed AWS infrastructure (\textbf{Bedrock, Lambda, DynamoDB, S3, API~Gateway}) via \textbf{Terraform} with \textbf{GitHub~Actions} CI/CD}
+    \resumeItem{\textbf{Optimized retrieval system} using \textbf{Bedrock~Knowledge~Base} with \textbf{Titan~embeddings} for semantic search over security policies and compliance documentation; configured document chunking strategies and integrated \textbf{Bedrock~Guardrails} for content safety and PII protection}
+    \resumeItem{\textbf{Extended system with multi-agent orchestration} using \textbf{LangChain/LangGraph} \textbf{StateGraph} supervisor pattern to automate complex multi-step security workflows; built custom LangChain tools with \textbf{Pydantic} validation and implemented \textbf{DynamoDB} conversation memory for session-aware context}
+    \resumeItem{\textbf{Developed production API layer} using \textbf{FastAPI} with \textbf{Pydantic} models and \textbf{OpenAPI} documentation for AI agent endpoints; integrated with \textbf{DynamoDB} (pay-per-request, GSIs) for conversation state and configured \textbf{API~Gateway} rate limiting and authentication}
 }
 \vspace{0.4em}
 
@@ -102,7 +105,7 @@
 \textbf{Client: Fidelity Investments (Wealth \& Asset Management)} \hfill \textit{Jan 2021 -- Dec 2024}\\
 \textit{Senior Backend Engineer - Agency Lending}
 \resumeItemList{
-    \resumeItem{\textbf{Architected file processing workflows} using \textbf{Spring~Boot}; containerized and deployed to \textbf{Amazon~EKS}; integrated \textbf{S3} feeds via \textbf{SNS} for event-driven orchestration}
+    \resumeItem{\textbf{Built file processing workflows} using \textbf{Spring~Boot}; containerized and deployed to \textbf{Amazon~EKS}; integrated \textbf{S3} feeds via \textbf{SNS} for event-driven orchestration}
 }
 \vspace{0.4em}
 
@@ -139,7 +142,7 @@
 \resumeItemList{
     \resumeItem{\textbf{Developed full-stack applications} using \textbf{Angular, Spring~Boot} at Deloitte USI India, Zensar Technologies, and Mahindra Comviva; enterprise applications across financial and telecommunications domains}
     \resumeItem{\textbf{Utilized \textbf{LocalStack}} for local \textbf{AWS} service mocking (\textbf{SSM, Secrets~Manager, Lambda}); enabled efficient cloud-native development workflows}
-    \resumeItem{\textbf{Architected microservices transformation} from monolithic applications using \textbf{Spring~Boot}; implemented \textbf{12-factor~app} methodology for cloud-native scalability}
+    \resumeItem{\textbf{Led microservices transformation} from monolithic applications using \textbf{Spring~Boot}; implemented \textbf{12-factor~app} methodology for cloud-native scalability}
 }
 
 % Education Section
