@@ -189,3 +189,36 @@ A: Constructor runs first (dependencies null), @PostConstruct runs after injecti
 - [ ] Explain @PostConstruct runs after injection
 - [ ] Mention @PreDestroy for cleanup
 - [ ] Optional: Mention BeanPostProcessor for advanced scenarios
+
+---
+
+## 🔐 Lifecycle Concepts for Credential Rotation / @Value / Sidecar (Interview Prep)
+
+**What lifecycle concepts you need to implement the above:**
+
+| Concept | Why it matters for credentials/@Value |
+|--------|----------------------------------------|
+| **Constructor vs DI vs @PostConstruct order** | @Value is bound in DI phase — never use credentials in constructor; build DataSource in @PostConstruct or in a @Bean method that runs after DI. |
+| **@Value is one-time binding** | Credentials are injected once at bean creation. For rotating credentials you must read from files/env at runtime or use a watcher, not rely on @Value alone. |
+| **@PostConstruct runs after all injections** | Safe place to read secrets from files, create DataSource, or start a background watcher. Constructor is too early (values still null). |
+| **Bean creation order** | If a bean needs credentials, its dependencies (e.g. DataSource) must be created after secrets are available — either via @PostConstruct inside the bean or via @Bean methods that use Environment / file paths. |
+| **@PreDestroy** | Use it to close connection pools, cancel watcher threads, and release resources when the app shuts down. |
+
+---
+
+### Lines to use in the interview
+
+**On lifecycle order**
+- *"For credential injection I rely on the fact that @Value and @Autowired are applied in the dependency-injection phase, after the constructor. So I never touch credentials in the constructor — I build the DataSource or read from the secret file in @PostConstruct, when everything is already injected."*
+
+**On why @Value alone isn’t enough for rotation**
+- *"@Value is resolved once when the bean is created. For daily credential rotation, the app must also handle refresh: either watch the secret file or the environment and recreate the DataSource when credentials change. That’s lifecycle-aware: we use @PostConstruct to start the watcher and @PreDestroy to stop it and close the pool."*
+
+**On where to put “startup” logic**
+- *"Secret loading and DataSource creation happen after injection, so I do that in @PostConstruct. That’s when Environment and any @Value fields are guaranteed to be set. If I did it in the constructor, those would still be null."*
+
+**On cleanup**
+- *"When credentials or connection pools are involved, I use @PreDestroy to close the pool and cancel any background refresh tasks. That keeps shutdown clean and avoids connection leaks."*
+
+**On tying it to “implementing the above”**
+- *"To implement rotating DB credentials with a sidecar, I need to know: (1) constructor → DI → @PostConstruct order, so I don’t use credentials too early; (2) that @Value is one-time, so I add a watcher or periodic refresh in @PostConstruct; and (3) @PreDestroy for closing the pool and stopping the watcher. The lifecycle gives me the right hooks for init and cleanup."*
