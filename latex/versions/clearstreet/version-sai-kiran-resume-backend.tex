@@ -1,0 +1,152 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{enumitem}
+\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue]{hyperref}
+\usepackage{titlesec}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{needspace}
+
+% Page numbers at bottom center
+\pagestyle{plain}
+
+% Section formatting - ATS-friendly
+\titleformat{\section}
+  {\Large\bfseries\uppercase}
+  {}
+  {0em}
+  {}
+  [\titlerule]
+
+\titlespacing{\section}{0pt}{12pt}{8pt}
+
+% Custom commands for better readability with visible bullets
+\newcommand{\resumeItem}[1]{\item\small{#1}}
+\newcommand{\resumeItemList}[1]{\begin{itemize}[leftmargin=0.5in, itemsep=0.25em, parsep=0pt, partopsep=0pt, topsep=0.25em]
+    \small
+    #1
+\end{itemize}}
+
+% Header
+\newcommand{\resumeHeader}[4]{
+    \begin{center}
+        {\Huge\bfseries #1}\\[0.3cm]
+        #2 \quad $\diamond$ \quad #3\\[0.15cm]
+        #4
+    \end{center}
+}
+
+\begin{document}
+
+% Prevent hyphenation of important technical terms
+\hyphenation{Secrets-Manager Step-Functions RAG-system vector-embeddings API-Gateway Spring-Boot CI-CD}
+
+% Header Section
+\resumeHeader{Sai Kiran Kondapalli}
+{+1-210-844-6711}
+{Jersey City, NJ, USA}
+{\href{mailto:saikirankondapalli03@gmail.com}{saikirankondapalli03@gmail.com} \quad $\diamond$ \quad \href{https://www.linkedin.com/in/saikirankondapalli}{LinkedIn} \quad $\diamond$ \quad \href{https://github.com/saikirankondapalli}{GitHub}}
+
+% Summary Section - Optimized for recruiters
+\section{Summary}
+\small\raggedright{\textbf{AWS-certified} Senior Software Engineer with \textbf{10+ years} of experience designing and building \textbf{highly available, scalable, mission-critical} applications in financial systems. Core expertise in \textbf{Java, Python, Kafka, AWS, Kubernetes, Docker}. Built \textbf{high-throughput streaming applications} and \textbf{event-driven microservices} for trading platforms, led large-scale \textbf{Kafka} migrations supporting \textbf{FIX protocol} order processing, and implemented \textbf{Infrastructure as Code} with \textbf{Terraform}. Strong background in \textbf{distributed systems}, \textbf{algorithms and data structures}, and working with stakeholders to drive product features from design to completion.}
+
+% Technical Skills Section - ATS-optimized, recruiter-friendly
+\section{Technical Skills}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+    \textbf{Languages:} & Java, Python, Go, TypeScript, SQL, Shell Scripting\\
+    \textbf{Frameworks:} & Spring Boot, Spring Cloud, Spring WebFlux, FastAPI, React, Redux, Angular\\
+    \textbf{Cloud \& DevOps:} & AWS (Lambda, EKS, S3, SQS, API~Gateway, EventBridge, Step~Functions, Secrets~Manager, IAM, KMS), Terraform, PCF (Pivotal Cloud Foundry), Kubernetes, Docker, Jenkins, GitLab~CI/CD\\
+    \textbf{Messaging \& Streaming:} & Apache Kafka, Kafka Streams, KSQL, SQS, SNS, ActiveMQ\\
+    \textbf{Databases:} & PostgreSQL, Oracle, MongoDB, DynamoDB, OpenSearch/Elasticsearch\\
+    \textbf{Architecture:} & Microservices, Event-Driven Architecture, Domain-Driven Design, CQRS, Serverless, High-Throughput Systems\\
+    \textbf{Tools:} & Maven, Gradle, Ansible, Hibernate, JPA, SQLAlchemy, Airflow, VeriFIX\\
+\end{tabularx}
+\renewcommand{\arraystretch}{1}
+
+% Certifications Section - Moved up for visibility
+\section{Certifications}
+\begin{center}
+    \small\href{https://www.credly.com/badges/aa170f9b-6c94-465f-b497-0b8e4cf93297/public_url}{\textbf{AWS Certified Developer}} \hspace{0.3em} $\diamond$ \hspace{0.3em} \href{https://www.credly.com/badges/6ec4ce21-91d8-4bb5-9867-b936f250ded0/public_url}{\textbf{AWS Certified Data Engineer}} \hspace{0.3em} $\diamond$ \hspace{0.3em} \href{https://www.credly.com/badges/09a07b44-fd10-48ff-a694-604c6f9628a7/public_url}{\textbf{AWS Certified AI Practitioner}}
+\end{center}
+
+% Professional Experience Section
+\section{Professional Experience}
+
+\textbf{Ernst And Young US LLP} \hfill \textit{Nov 2020 -- Present}\\
+\textit{Senior Software Developer}
+
+\needspace{5\baselineskip}
+\textbf{Client: TIAA} \hfill \textit{Dec 2024 -- Present}\\
+\textit{Senior Backend Engineer - Cybersecurity API Engineering}
+\resumeItemList{
+    \resumeItem{\textbf{Architected CyberArk sidecar pattern} for zero-trust secret injection in \textbf{Spring Boot microservices}; eliminated hardcoded credentials and enabled secure rotation without redeployment}
+    \resumeItem{\textbf{Built security governance platform} using \textbf{Python~ETL~pipelines} (aggregating \textbf{Wiz, Snyk} data); developed \textbf{Angular} dashboard for displaying summary of security posture visibility for all applications}
+    \resumeItem{\textbf{Built backend services} for RAG system: \textbf{Airflow} data ingestion pipeline, \textbf{AWS~OpenSearch} search backend (BM25 + vector~embeddings), and \textbf{FastAPI} endpoints for \textbf{LLM} integration}
+}
+\vspace{0.4em}
+
+\needspace{5\baselineskip}
+\textbf{Client: Fidelity Investments (Wealth \& Asset Management)} \hfill \textit{Jan 2021 -- Dec 2024}\\
+\textit{Senior Backend Engineer - Direct Indexing Platform}
+\resumeItemList{
+    \resumeItem{\textbf{Designed highly scalable serverless architecture} for Direct Indexing Platform using \textbf{AWS~Lambda, SQS, EventBridge, Step~Functions, API~Gateway}; orchestrated account lifecycle state machines for high-volume transaction processing}
+    \resumeItem{\textbf{Implemented Infrastructure as Code} with \textbf{Terraform} for \textbf{AWS~IAM, Lambda, Secrets~Manager, API~Gateway}; established \textbf{CI/CD~pipelines} across environments ensuring high availability}
+    \resumeItem{\textbf{Designed PostgreSQL data models} using \textbf{SQLAlchemy~ORM} with relationships, constraints, and indexes; optimized for high-throughput account processing}
+    \resumeItem{\textbf{Collaborated with stakeholders} to understand business requirements, define new features, and drive implementation from design to completion}
+}
+\vspace{0.4em}
+
+\needspace{3\baselineskip}
+\textbf{Client: Fidelity Investments (Wealth \& Asset Management)} \hfill \textit{Jan 2021 -- Dec 2024}\\
+\textit{Senior Backend Engineer - Agency Lending}
+\resumeItemList{
+    \resumeItem{\textbf{Architected file processing workflows} using \textbf{Spring~Boot}; containerized and deployed to \textbf{Amazon~EKS}; integrated \textbf{S3} feeds via \textbf{SNS} for event-driven orchestration}
+}
+\vspace{0.4em}
+
+\needspace{4\baselineskip}
+\textbf{Client: Fidelity Investments (Wealth \& Asset Management)} \hfill \textit{Jan 2021 -- Dec 2024}\\
+\textit{Senior Backend Engineer - Bond Beacon}
+\resumeItemList{
+    \resumeItem{\textbf{Led migration} from \textbf{Tibco~EMS} to \textbf{Apache~Kafka} for high-throughput trading system; refactored order processing (Limit/Market/Bid~Wanted~Orders) supporting the \textbf{FIX~protocol}, ensuring mission-critical reliability and scalability}
+    \resumeItem{\textbf{Implemented \textbf{VeriFIX} simulation framework} for isolated integration testing; reduced external dependencies and improved test reliability for trading workflows}
+    \resumeItem{\textbf{Built streaming data pipeline} using \textbf{Kafka} to process real-time bond trading data; designed efficient data processing algorithms for low-latency requirements}
+}
+\vspace{0.4em}
+
+\needspace{3\baselineskip}
+\textbf{Client: Bank of America} \hfill \textit{Nov 2020 -- Dec 2020}\\
+\textit{Senior Backend Engineer}
+\resumeItemList{
+    \resumeItem{\textbf{Developed non-linear file processing workflows} for \textbf{KYC} system using \textbf{Apache~Camel, Spring~Boot, AWS}; orchestrated complex business rules for compliance validation}
+}
+
+\needspace{6\baselineskip}
+\textbf{Colaberry Inc, New Jersey} \hfill \textit{June 2020 -- Nov 2020}\\
+\textit{Senior Software Developer}
+\resumeItemList{
+    \resumeItem{\textbf{Engineered Spring~Boot~REST~APIs} implementing the \textbf{CQRS} pattern; integrated \textbf{Kafka} for high-throughput event streaming and third-party automation}
+    \resumeItem{\textbf{Built scalable omnichannel retail microservices} (\textbf{BOPS/BOSS}) with real-time \textbf{UPS} integration; implemented event-driven order~lifecycle~management}
+    \resumeItem{\textbf{Designed location hierarchy system} using \textbf{Spring~Boot, Hibernate}; implemented \textbf{GS1-compliant} barcode generation and locker delivery integration}
+    \resumeItem{\textbf{Developed streaming data pipeline} using \textbf{Kafka~Streams, KSQL}; exposed insights via \textbf{RESTful~APIs} for real-time decision-making}
+}
+\vspace{0.4em}
+
+\needspace{5\baselineskip}
+\textbf{Previous Experience} \hfill \textit{June 2013 -- Jan 2019}\\
+\textit{Senior Software Developer}
+\resumeItemList{
+    \resumeItem{\textbf{Developed full-stack applications} using \textbf{Angular, Spring~Boot} at Deloitte USI India, Zensar Technologies, and Mahindra Comviva; built mission-critical enterprise applications across financial and telecommunications domains}
+    \resumeItem{\textbf{Utilized \textbf{LocalStack}} for local \textbf{AWS} service mocking (\textbf{SSM, Secrets~Manager, Lambda}); enabled efficient cloud-native development workflows}
+    \resumeItem{\textbf{Architected microservices transformation} from monolithic applications using \textbf{Spring~Boot}; implemented \textbf{12-factor~app} methodology for cloud-native scalability and high availability}
+}
+
+% Education Section
+\section{Education}
+\textbf{Stevens Institute of Technology, Hoboken, NJ} \hfill \textit{May 2020}\\
+\textit{Master of Science in Computer Science and Software Engineering}
+
+\end{document}
