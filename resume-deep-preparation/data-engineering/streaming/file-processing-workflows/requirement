@@ -1,0 +1,12 @@
+I worked for fidelity agency lending business domain as senior backend engineer. 
+
+But throughout the tenure, it was more sort of laid back and i was not given any task.its unfortunate.
+But i had my observations noted. There were some file processing workflows. they had some integration with Equilend. 
+
+Equilend drops files to an S3 bucket (landing zone) end of the day. i believe something to do with after hours of trading related data on how many shares were lended to a particular institutions or bank. 
+
+I know the requirement very very vaguely. I could be wrong with business requirement. But im sure that they are doing something of that. 
+
+The problem here is in my resume, i wrote the requirement saying file processing workflows triggering after Equilend. which i have no clue both business wise and technical architecture wise as well. 
+
+you being an expert in both, help me in preparing for interview related to that. 
