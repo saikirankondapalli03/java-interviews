@@ -46,14 +46,14 @@
 ### Write to Curated S3 (Parquet)
 
 - **Partitioning:** Write to `s3://curated-bucket/equilend/positions/file_date=YYYYMMDD/` (partition by file_date). Enables partition pruning in Athena and Spark later.
-- **Staging then commit:** Write to a staging prefix (e.g. `_staging/`) then rename/move to final partition so downstream (Athena, Redshift COPY) never sees partial data. Or use Spark's "write then rename partition" pattern. **Interview:** "We write to a staging prefix first, then move to the final partition so downstream only sees complete partitions."
+- **Staging then commit:** Write to a staging prefix (e.g. `_staging/`) then rename/move to final partition so downstream (Athena, Snowflake COPY) never sees partial data. Or use Spark's "write then rename partition" pattern. **Interview:** "We write to a staging prefix first, then move to the final partition so downstream only sees complete partitions."
 - **Format:** Parquet; compression (e.g. snappy) for size and speed.
 
 ### Write to Kafka (MSK)
 
 - **Spark Kafka connector:** `df.write.format("kafka").option("kafka.bootstrap.servers", ...).option("topic", "equilend.positions.curated").save()`. Serialize DataFrame rows to bytes (e.g. JSON or Avro). Need schema registry or agreed format for consumers.
 - **Per-record or micro-batch:** We write the whole DataFrame as a batch to Kafka. Kafka sees many messages (one per row) or we can coalesce to fewer larger messages depending on consumer expectations.
-- **Idempotent producer:** Kafka producer can be configured for idempotence (exactly-once semantics) to avoid duplicate records on retry. **Interview:** "We use the Spark Kafka sink to publish curated rows to MSK. We configure the producer for idempotence where we need exactly-once; our consumer (Spark Streaming) can then do exactly-once or at-least-once with overwrite by file_date in Redshift."
+- **Idempotent producer:** Kafka producer can be configured for idempotence (exactly-once semantics) to avoid duplicate records on retry. **Interview:** "We use the Spark Kafka sink to publish curated rows to MSK. We configure the producer for idempotence where we need exactly-once; our consumer (Spark Streaming) can then do exactly-once or at-least-once with overwrite by file_date in Snowflake."
 
 ### Update DynamoDB (Audit)
 
@@ -88,7 +88,7 @@
 - **Why Glue and not Lambda for the file?** Lambda has 15 min max, 10 GB RAM. Our files can be millions of rows; we need distributed processing (Spark). Glue gives managed Spark; we pay per run.
 - **Do you use Glue job bookmarks?** We pass the input path as a job argument (one file per run). We don't use job bookmarks for file selection; idempotency is in the orchestrator and DynamoDB. We could use bookmarks if we had a single job processing a folder of new files.
 - **How do you handle bad rows?** We validate in Spark; valid rows go to curated S3 and Kafka; invalid rows go to S3 quarantine with reject reason. Audit has record_count and reject_count. We don't fail the whole file.
-- **How do you avoid duplicate writes to Kafka/Redshift if the job runs twice?** Idempotency at orchestrator (don't start job twice). If job does run twice, we overwrite by file_date in Redshift and/or use idempotent Kafka producer; consumer (Spark Streaming) overwrites same partition so end state is correct.
+- **How do you avoid duplicate writes to Kafka/Snowflake if the job runs twice?** Idempotency at orchestrator (don't start job twice). If job does run twice, we overwrite by file_date in Snowflake and/or use idempotent Kafka producer; consumer (Spark Streaming) overwrites same partition so end state is correct.
 - **Where is the schema defined?** In config (S3 or Parameter Store): column list, types, mandatory flags, validation rules. Glue/Spark reads config at runtime so we can add optional columns without code deploy.
 
 Use this when they drill into "how does the Glue job work?" or "how do you validate and write to S3 and Kafka?"

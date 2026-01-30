@@ -1,6 +1,6 @@
 # Component: DynamoDB (Audit & Idempotency)
 
-**Role in flow:** Store one row per file with idempotency key. Orchestrator checks before starting the job; Glue (or completion Lambda) updates on success/failure. Used for skip-on-replay and compliance/lineage.
+**Role in flow:** Store one row per file with idempotency key. Orchestrator checks before starting the job; Glue (or completion Lambda) updates on success/failure. Used for skip-on-replay and compliance/lineage. **Implementation:** DynamoDB or PostgreSQL (RDS) both work; this doc uses DynamoDB (serverless, no connection pool in Lambda). Same logic applies to Postgres: unique constraint on idempotency key + conditional insert/update.
 
 ---
 
@@ -50,7 +50,7 @@
 
 ## 3. Likely Interview Questions & Answers
 
-- **Why DynamoDB and not RDS?** DynamoDB is serverless, scales with reads/writes, no connection pool in Lambda. We need fast key lookups by idempotency key; no joins. RDS would work too (unique constraint on idempotency key).
+- **Why DynamoDB and not PostgreSQL (or RDS)?** For *idempotency and audit only*, **PostgreSQL is perfectly fine**. You need: (1) a unique constraint on the idempotency key, (2) a conditional “insert only if not exists” (or “update only if status = PENDING”) so only one worker wins, (3) strong consistency on the read-before-start. PostgreSQL gives you that with a simple table + unique index + `SELECT ... FOR UPDATE` or `INSERT ... ON CONFLICT DO NOTHING` / conditional update. **Why we show DynamoDB:** serverless, no connection pool in Lambda (each invocation gets a new HTTP call to DynamoDB), auto-scaling, and same AWS-native story as S3/SQS/Glue. If your org already runs PostgreSQL (e.g. for the API or reporting) and you want one less moving part, **using the same RDS for the audit table is a valid and common choice.** Interview: *“We use DynamoDB for audit and idempotency so Lambda doesn’t need a DB connection pool and we get serverless scaling. You could do the same with PostgreSQL: one table, unique constraint on the idempotency key, conditional insert/update so only one job runs per file.”*
 - **What if two messages for the same file arrive at once?** Conditional put: only one PutItem (status PENDING) succeeds. The other gets ConditionalCheckFailed; GetItem sees PENDING or SUCCESS and skips. Only one job runs.
 - **How do you handle replay (same file re-dropped with fix)?** By default we skip if SUCCESS. For replay we have a controlled process: ops can clear the audit row or use a separate "reprocess" path that overwrites by file_date.
 - **Can you query "all failed files for last 7 days"?** Query each date by PK or use a **GSI** with status (or sparse GSI where status = FAILED). Or export to S3/Athena for analytics.

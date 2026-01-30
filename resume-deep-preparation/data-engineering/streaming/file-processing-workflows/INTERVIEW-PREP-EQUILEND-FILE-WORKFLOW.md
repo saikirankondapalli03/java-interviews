@@ -3,6 +3,8 @@
 
 This document supports your **Senior Backend Engineer** interview for Fidelity Agency Lending file processing workflows. Use case: **reporting**. Stack: **Spark (batch + streaming) + Kafka**, **AWS cloud–centric**. Deep enough to sustain a **1-hour** technical and design discussion.
 
+**Reporting warehouse:** **Snowflake**. Pipeline: Glue/Spark → Kafka → Spark Streaming → Snowflake → **API queries Snowflake directly**. No Glue sync to RDBMS for our use case. Use component doc `08-SNOWFLAKE.md` for depth.
+
 ---
 
 # RESUME LINE — HOW TO EXPLAIN (Resume Already Submitted)
@@ -19,13 +21,13 @@ This document supports your **Senior Backend Engineer** interview for Fidelity A
 - **S3 + SNS + EKS** = Correct: S3 feeds, SNS for event-driven orchestration, Spring Boot APIs on EKS. All true.
 
 **If they ask: "What did Spring Boot do in this workflow?"**  
-*"Spring Boot is the **reporting API** we deployed on EKS. It doesn't do the heavy file parsing—that runs on Spark (EMR or Glue) because the files can be large and we need distributed processing. Spring Boot queries the RDBMS that we sync from the pipeline and serves the Angular app: Daily Positions, Exposure by Borrower, Daily P&L. So in this workflow, Spring Boot is the serving layer; the batch processing layer is Spark. We integrated S3 feeds via SNS so that when files land, the event-driven pipeline runs, and the API has the data available for the UI."*
+*"Spring Boot is the **reporting API** we deployed on EKS. It doesn't do the heavy file parsing—that runs on Spark (EMR or Glue) because the files can be large and we need distributed processing. Spring Boot queries **Snowflake** directly (JDBC + connection pooling) and serves the Angular app: Daily Positions, Exposure by Borrower, Daily P&L. So in this workflow, Spring Boot is the serving layer; the batch processing layer is Spark. We integrated S3 feeds via SNS so that when files land, the event-driven pipeline runs, and the API has the data available from Snowflake for the UI."*
 
 **If they ask: "So you didn't use Spring Boot for the actual file processing?"**  
 *"Right—the CSV read, validation, and publish to Kafka is Spark. Spring Boot's role is the API that exposes the processed data to the front end. We architected the **overall** workflow so that file ingestion, processing, and serving are clearly separated; Spring Boot owns the serving part and is what we containerized and ran on EKS."*
 
 **One sentence you can use anytime:**  
-*"I architected the file processing workflow end-to-end: S3 and SNS for event-driven orchestration, Spark for the actual file processing and Kafka pipeline, and Spring Boot on EKS as the reporting API that serves the UI from the RDBMS."*
+*"I architected the file processing workflow end-to-end: S3 and SNS for event-driven orchestration, Spark for the actual file processing and Kafka pipeline, and Spring Boot on EKS as the reporting API that serves the UI from Snowflake."*
 
 Use this so you can answer confidently and honestly without overclaiming or underclaiming.
 
@@ -48,7 +50,7 @@ Fidelity’s Agency Lending business acts as **agent** for institutional lenders
 | **Settlement / Activity** | Trades settled, failed, or pending (reconciliation). | Ops, Middle office | “Did everything settle?” “What’s still open?” |
 
 **End objective (one sentence):**  
-Process Equilend files from S3 so that **daily positions, exposure, P&L, and collateral** are available in a **reporting store** (e.g., Redshift / S3 + Athena) and **Angular app** (reporting UI) for **Operations, Risk, Finance, and Management** by T+1 morning.
+Process Equilend files from S3 so that **daily positions, exposure, P&L, and collateral** are available in a **reporting store** (e.g., **Snowflake** or S3 + Athena) and **Angular app** (reporting UI) for **Operations, Risk, Finance, and Management** by T+1 morning.
 
 **Who displays the data?**
 
@@ -57,7 +59,7 @@ Process Equilend files from S3 so that **daily positions, exposure, P&L, and col
 | **Operations** | Angular app – “Daily Positions” | Positions by security, borrower, book; record counts; file receipt status. |
 | **Risk** | Angular app – “Exposure by Borrower” | Loan value and count by borrower; concentration; limits. |
 | **Finance / Management** | Angular app – “Daily P&L” | P&L by book/desk; rebate and fee income; MTM change. |
-| **Compliance / Audit** | Athena/Redshift queries + audit table | Raw file lineage; processed file list; record counts; checksums. |
+| **Compliance / Audit** | Athena/Snowflake queries + audit table | Raw file lineage; processed file list; record counts; checksums. |
 
 ---
 
@@ -179,7 +181,7 @@ Equilend drops files into a **landing bucket** with a known prefix. We focus on 
 | ID | Requirement | Detail |
 |----|-------------|--------|
 | BR-1 | Ingest Equilend files from the designated S3 landing bucket as they arrive. | **Which bucket:** e.g. `fidelity-agency-lending-equilend-landing`. **Which prefixes:** `positions/`, `mtm_pnl/`. **When:** On `s3:ObjectCreated:Complete` (file fully written). No polling. |
-| BR-2 | Process files within SLA so reports are available by T+1 morning. | **SLA:** Positions and P&L data available for reporting by 6 AM ET on T+1. **Implication:** File processing + Spark job + Kafka pipeline + load to Redshift/Athena must complete within that window. |
+| BR-2 | Process files within SLA so reports are available by T+1 morning. | **SLA:** Positions and P&L data available for reporting by 6 AM ET on T+1. **Implication:** File processing + Spark job + Kafka pipeline + load to Snowflake/Athena must complete within that window. |
 
 ## C.2 Data Quality & Validation
 
@@ -198,7 +200,7 @@ Equilend drops files into a **landing bucket** with a known prefix. We focus on 
 | BR-8 | Daily Loan Positions report. | **Data source:** Processed positions file (curated). **Consumers:** Ops, Risk. **Display:** Angular app – “Daily Positions” (positions by security, borrower, book; filters by date). **Metrics:** Total loan value, count of loans, top borrowers, top securities. |
 | BR-9 | Exposure by Borrower report. | **Data source:** Same positions data, aggregated by `borrower_id` (sum of `loan_value_usd`, count of loans). **Consumers:** Risk, Compliance. **Display:** Angular app “Exposure by Borrower”. **Purpose:** Concentration risk. |
 | BR-10 | Daily P&L report. | **Data source:** Processed P&L file (curated). **Consumers:** Finance, Management. **Display:** Angular app “Daily P&L” (P&L by book/desk; rebate and fee income). **Metrics:** Total P&L, P&L by book, by desk. |
-| BR-11 | Data available for ad-hoc query. | **Where:** Redshift (or S3 + Athena). **Who:** Compliance, Audit, analysts. **What:** Curated positions and P&L tables + audit table for lineage. |
+| BR-11 | Data available for ad-hoc query. | **Where:** Snowflake or Snowflake (Fidelity uses Snowflake), or S3 + Athena. **Who:** Compliance, Audit, analysts. **What:** Curated positions and P&L tables + audit table for lineage. |
 
 ---
 
@@ -217,10 +219,10 @@ Equilend drops files into a **landing bucket** with a known prefix. We focus on 
 | ID | Requirement | Detail |
 |----|-------------|--------|
 | TR-4 | **Batch processing of each file with Apache Spark.** | **Where:** **Amazon EMR** (Spark on YARN) or **AWS Glue** (Spark jobs). **Flow:** SQS message received → orchestrator (Lambda or Step Functions) submits **Spark job** (PySpark) with args: `--input-path s3://bucket/key`, `--file-type positions|mtm_pnl`, `--file-date YYYYMMDD`. Spark reads CSV from S3, validates schema and business rules, writes **valid** rows to **curated S3** (Parquet) and/or **publishes to Amazon MSK** (Kafka) for the reporting pipeline. **Rationale:** Large files (millions of rows), complex validation and transforms; Spark gives scalable, distributed batch processing. |
-| TR-5 | **Streaming pipeline for reporting using Kafka + Spark Streaming.** | **Source:** **Amazon MSK** (Kafka). **Topics:** e.g. `equilend.positions.curated`, `equilend.mtm_pnl.curated`. Spark batch job (above) **writes** to these topics (per record or micro-batch). **Consumer:** **Spark Streaming** (on EMR or EKS) or **Glue Streaming** job: reads from MSK, aggregates (e.g. by borrower, by book), and **sinks** to **Amazon Redshift** (via JDBC or Redshift Data API) or **S3** (Parquet) for **Athena**, or **OpenSearch** for search-style dashboards. **Rationale:** Unify file-originated data with other event streams later; support near–real-time reporting if we add more sources; you use **both Spark (batch) and Kafka (streaming)** in one pipeline. |
+| TR-5 | **Streaming pipeline for reporting using Kafka + Spark Streaming.** | **Source:** **Amazon MSK** (Kafka). **Topics:** e.g. `equilend.positions.curated`, `equilend.mtm_pnl.curated`. Spark batch job (above) **writes** to these topics (per record or micro-batch). **Consumer:** **Spark Streaming** (on EMR or EKS) or **Glue Streaming** job: reads from MSK, aggregates (e.g. by borrower, by book), and **sinks** to **Snowflake** (via JDBC/connector or COPY INTO from S3) or **S3** (Parquet) for **Athena**, or **OpenSearch** for search-style dashboards. **Rationale:** Unify file-originated data with other event streams later; support near–real-time reporting if we add more sources; you use **both Spark (batch) and Kafka (streaming)** in one pipeline. |
 | TR-6 | Schema and file type configuration. | **Positions:** Column list, types, mandatory flags, and validation rules in **config** (e.g. S3 JSON/YAML or Parameter Store). **P&L:** Same. **File type detection:** From S3 key prefix or naming pattern (`positions/` vs `mtm_pnl/`). |
-| TR-7 | Idempotency. | **Key:** `EQUILEND|<file_type>|<file_date>|<s3_key>`. **Store:** **DynamoDB** table `equilend_file_audit` (partition key: `file_type#file_date`, sort key: `s3_key`) or RDS. Before Spark job writes to Kafka or Redshift, check DynamoDB; if key exists and status = SUCCESS, skip write or overwrite same partition. Spark job updates DynamoDB on success/failure. |
-| TR-8 | Staged load and consistency. | **Curated S3:** Spark writes to **staging prefix** (e.g. `s3://curated-bucket/equilend/positions/file_date=YYYYMMDD/`) then **move/commit** so downstream (Athena, Redshift COPY) sees only complete partitions. **Redshift:** Use **staging table** then **INSERT INTO final** or **MERGE** by `file_date` + `file_type` so we do not expose partial writes. |
+| TR-7 | Idempotency. | **Key:** `EQUILEND|<file_type>|<file_date>|<s3_key>`. **Store:** **DynamoDB** table `equilend_file_audit` (partition key: `file_type#file_date`, sort key: `s3_key`) or RDS. Before Spark job writes to Kafka or Snowflake, check DynamoDB; if key exists and status = SUCCESS, skip write or overwrite same partition. Spark job updates DynamoDB on success/failure. |
+| TR-8 | Staged load and consistency. | **Curated S3:** Spark writes to **staging prefix** (e.g. `s3://curated-bucket/equilend/positions/file_date=YYYYMMDD/`) then **move/commit** so downstream (Athena, Snowflake COPY INTO) sees only complete partitions. **Snowflake:** Use **staging table** then **INSERT INTO final** or **MERGE** by `file_date` + `file_type` so we do not expose partial writes (Snowflake has strong MERGE support). |
 | TR-9 | Resource and cost control. | **EMR:** Transient cluster per job or long-running cluster with auto-scaling. **Glue:** Job bookmark and worker count. **Concurrency:** SQS visibility timeout and max in-flight messages so the same file is not processed twice; limit concurrent Spark jobs (e.g. one positions + one P&L at a time per day). |
 
 ## D.3 Observability & Failure (AWS)
@@ -236,7 +238,7 @@ Equilend drops files into a **landing bucket** with a known prefix. We focus on 
 | ID | Requirement | Detail |
 |----|-------------|--------|
 | TR-13 | Least-privilege IAM. | **EMR/Glue role:** Read S3 landing + config; write S3 curated + quarantine; write MSK; write DynamoDB audit; write CloudWatch. **Lambda/Step Functions role:** Receive SQS; invoke EMR/Glue; read/write DynamoDB. **No** cross-account or broad S3 wildcards unless required. |
-| TR-14 | Encryption and masking. | **S3:** SSE-S3 or SSE-KMS on landing, curated, quarantine. **MSK:** TLS in transit; encryption at rest. **Logs:** Mask `borrower_name`, PII in application logs. **Redshift/Athena:** Column-level or table-level access for sensitive reports. |
+| TR-14 | Encryption and masking. | **S3:** SSE-S3 or SSE-KMS on landing, curated, quarantine. **MSK:** TLS in transit; encryption at rest. **Logs:** Mask `borrower_name`, PII in application logs. **Snowflake/Athena:** Column-level or table-level access (or Snowflake masking) for sensitive reports. |
 
 ---
 
@@ -271,38 +273,36 @@ Spark Streaming (or Glue Streaming) – STREAMING
     → consumes from MSK (equilend.positions.curated, equilend.mtm_pnl.curated)
     → aggregates (e.g. by borrower_id, by book_id) for reporting
     → sinks to:
-        (1) Redshift (reporting tables: daily_positions, exposure_by_borrower, daily_pnl)
+        (1) Snowflake or Snowflake (Fidelity) (reporting tables: daily_positions, exposure_by_borrower, daily_pnl)
         (2) or S3 (Parquet) for Athena
 
-Reporting & display (recommended production pattern)
-    → Amazon Redshift (source of truth for analytics)
-    → Glue (or Spark) job: syncs reporting aggregates to RDBMS (PostgreSQL / Aurora)
-    → RDBMS: reporting.daily_positions, reporting.exposure_by_borrower, reporting.daily_pnl
-    → Spring Boot API (JDBC/JPA to RDBMS; simple SELECTs or stored procedures)
+Reporting & display (our pattern)
+    → Snowflake (source of truth for analytics and API)
+    → Spring Boot API (JDBC to Snowflake; connection pooling; simple SELECTs)
     → Angular app: Daily Positions, Exposure by Borrower, Daily P&L screens
     → Personas: Ops, Risk, Finance, Management (see Part A)
 ```
 
 ## E.4 Reporting API Layer: How Does Spring Boot Get the Data? (Architect Recommendation)
 
-**Short answer:** In production we **do not** have the Spring Boot API query Redshift directly. We use a **Glue (or Spark) job** that syncs reporting aggregates from Redshift into an **RDBMS (PostgreSQL or Aurora)**; the **Spring Boot API** then queries the RDBMS. The Angular app calls the API.
+**Short answer:** The **Spring Boot API queries Snowflake directly** via JDBC with connection pooling. No Glue sync to an RDBMS for our use case (internal reporting, T+1, moderate concurrency). One source of truth.
 
-### Why not Spring Boot → Redshift directly?
+### Why not Spring Boot → Snowflake directly?
 
-| Concern | Redshift direct (JDBC) | RDBMS as reporting serving layer |
+| Concern | Snowflake direct (JDBC) | RDBMS as reporting serving layer |
 |--------|------------------------|-----------------------------------|
-| **Connection limits** | Redshift has limited concurrent connections per cluster; many API instances × pool size can exhaust them. | PostgreSQL/Aurora is built for many concurrent OLTP-style connections. |
-| **Workload fit** | Redshift is a columnar analytical DB—best for bulk scans and analytics, not high-frequency, low-latency API traffic. | RDBMS is optimized for indexed point lookups and small result sets (exactly what “get this screen’s data” needs). |
+| **Connection limits** | Snowflake has limited concurrent connections per cluster; many API instances × pool size can exhaust them. | PostgreSQL/Aurora is built for many concurrent OLTP-style connections. |
+| **Workload fit** | Snowflake is a columnar analytical DB—best for bulk scans and analytics, not high-frequency, low-latency API traffic. | RDBMS is optimized for indexed point lookups and small result sets (exactly what “get this screen’s data” needs). |
 | **Latency** | Analytical queries can be hundreds of ms to seconds; acceptable for ad-hoc, not ideal for snappy UI. | Simple SELECTs on indexed tables give sub-second response for dashboard loads. |
-| **Operational clarity** | Mixing “analytics” and “API serving” on the same cluster blurs SLAs and makes tuning harder. | Clear separation: Redshift = analytics/source of truth; RDBMS = reporting serving layer. |
+| **Operational clarity** | Mixing “analytics” and “API serving” on the same cluster blurs SLAs and makes tuning harder. | Clear separation: Snowflake = analytics/source of truth; RDBMS = reporting serving layer. |
 
-**Conclusion:** Spring Boot *can* call Redshift via JDBC (or Redshift Data API) for **small scale** (e.g. few concurrent users, infrequent report loads). For a **production reporting UI** with multiple personas (Ops, Risk, Finance), the **recommended** pattern is to **sync aggregates to an RDBMS** and have the API query that.
+**Conclusion:** Spring Boot *can* call Snowflake via JDBC (or Snowflake Data API) for **small scale** (e.g. few concurrent users, infrequent report loads). For a **production reporting UI** with multiple personas (Ops, Risk, Finance), the **recommended** pattern is to **sync aggregates to an RDBMS** and have the API query that.
 
 ### Recommended pattern: Glue sync → RDBMS → Spring Boot
 
-1. **Redshift (or S3 + Athena)** remains the **source of truth** for the full dataset (Spark Streaming loads it; compliance and ad-hoc analytics query it).
-2. **Glue job (or scheduled Spark job)** runs **after** the main Equilend pipeline has loaded Redshift (e.g. on a schedule post–T+1 load, or triggered by pipeline completion). It:
-   - Reads from Redshift (or from the same S3 curated Parquet that Redshift is loaded from) the **reporting aggregates** needed for the three screens: `daily_positions`, `exposure_by_borrower`, `daily_pnl`.
+1. **Snowflake** (or S3 + Athena) remains the **source of truth** for the full dataset (Spark Streaming loads it; compliance and ad-hoc analytics query it).
+2. **Glue job (or scheduled Spark job)** runs **after** the main Equilend pipeline has loaded the warehouse (e.g. on a schedule post–T+1 load, or triggered by pipeline completion). It:
+   - Reads from Snowflake (or from the same S3 curated Parquet that Snowflake is loaded from) the **reporting aggregates** needed for the three screens: `daily_positions`, `exposure_by_borrower`, `daily_pnl`.
    - Writes them into **PostgreSQL** (RDS or **Aurora**) in tables such as `reporting.daily_positions`, `reporting.exposure_by_borrower`, `reporting.daily_pnl` (same grain as the reports; optionally partitioned by `file_date`).
 3. **Spring Boot API** connects to the RDBMS via JDBC (or JPA). It runs **simple SELECTs** (e.g. by `file_date`, `borrower_id`) or, if logic is complex, **stored procedures** that return result sets for each report screen.
 4. **Angular app** calls the API; the API returns JSON; no direct DB access from the front end.
@@ -320,7 +320,7 @@ Reporting & display (recommended production pattern)
 
 ### One-line for interview (API layer)
 
-“We **don’t** have the API hit Redshift directly—Redshift is our analytical source of truth with limited connections. A **Glue job** (or Spark) syncs the reporting aggregates from Redshift into **PostgreSQL/Aurora**; the **Spring Boot API** queries that RDBMS via JDBC. So: Redshift → Glue sync → RDBMS → Spring Boot → Angular. Stored procedures are optional for complex report logic; simple SELECTs are enough for the three main screens.”
+“We **don’t** have the API hit Snowflake directly—Snowflake is our analytical source of truth with limited connections. A **Glue job** (or Spark) syncs the reporting aggregates from Snowflake into **PostgreSQL/Aurora**; the **Spring Boot API** queries that RDBMS via JDBC. So: Snowflake → Glue sync → RDBMS → Spring Boot → Angular. Stored procedures are optional for complex report logic; simple SELECTs are enough for the three main screens.”
 
 ## E.2 Why Spark (Batch) + Kafka (Streaming) Together
 
@@ -328,9 +328,9 @@ Reporting & display (recommended production pattern)
 |-----------|------|-----|
 | **Spark (batch)** | Read file from S3; validate; transform; write to S3 + **publish to Kafka**. | Files are large and batch by nature; Spark scales and fits complex validation/joins. |
 | **Kafka (MSK)** | Event bus for **curated** positions and P&L. | Single place for “reporting-ready” data; multiple consumers (Spark Streaming, future real-time dashboards, risk engine). |
-| **Spark Streaming** | Consume from Kafka; aggregate; sink to Redshift/S3. | **Reporting** use case: we need aggregates (by borrower, by book) and stable tables for the API consumed by the Angular app. Spark Streaming gives exactly-once or at-least-once semantics and fits your skills. |
+| **Spark Streaming** | Consume from Kafka; aggregate; sink to Snowflake/S3. | **Reporting** use case: we need aggregates (by borrower, by book) and stable tables for the API consumed by the Angular app. Spark Streaming gives exactly-once or at-least-once semantics and fits your skills. |
 
-**One-line for interview:** “We use **Spark batch** to process the Equilend file from S3 and publish curated records to **Kafka (MSK)**; **Spark Streaming** consumes from Kafka, does the reporting aggregates, and loads **Redshift**. A **Glue job** syncs those aggregates into an **RDBMS** (PostgreSQL/Aurora); the **Spring Boot API** queries the RDBMS (not Redshift) and serves the **Angular app** that displays Daily Positions, Exposure by Borrower, and Daily P&L for Ops, Risk, and Finance.”
+**One-line for interview:** “We use **Spark batch** to process the Equilend file from S3 and publish curated records to **Kafka (MSK)**; **Spark Streaming** consumes from Kafka, does the reporting aggregates, and loads **Snowflake**. The **Spring Boot API** queries Snowflake directly (JDBC + connection pooling) and serves the **Angular app** that displays Daily Positions, Exposure by Borrower, and Daily P&L for Ops, Risk, and Finance.”
 
 ## E.3 AWS Services Summary
 
@@ -342,10 +342,8 @@ Reporting & display (recommended production pattern)
 | Batch processing | **Amazon EMR** (Spark/PySpark) or **AWS Glue** (Spark job) |
 | Event bus / streaming | **Amazon MSK** (Kafka): topics equilend.positions.curated, equilend.mtm_pnl.curated |
 | Streaming processing | **EMR** (Spark Streaming) or **Glue Streaming** consuming from MSK |
-| Reporting store (source of truth) | **Amazon Redshift** (or **S3 + Athena**) – analytics, ad-hoc, compliance |
-| Reporting sync | **Glue job** (or Spark): syncs aggregates from Redshift → RDBMS after pipeline load |
-| Reporting serving layer | **RDBMS** (**Aurora PostgreSQL** or **RDS PostgreSQL**): tables for daily_positions, exposure_by_borrower, daily_pnl |
-| API layer | **Spring Boot** (JDBC/JPA to RDBMS; simple SELECTs or stored procedures) – **does not** query Redshift directly |
+| Reporting store (source of truth) | **Snowflake** – analytics, ad-hoc, compliance, **and API** |
+| API layer | **Spring Boot** (JDBC to Snowflake; connection pooling; simple SELECTs) – **queries Snowflake directly** |
 | Front-end / dashboards | **Angular app** (consumes Spring Boot API; Daily Positions, Exposure by Borrower, Daily P&L screens) |
 | Audit / idempotency | **DynamoDB** (file_audit table) |
 | Quarantine / DLQ | **S3** (quarantine prefix), **SQS DLQ** |
@@ -360,18 +358,18 @@ Reporting & display (recommended production pattern)
 1. **Domain:** “Agency lending: we lend securities on behalf of institutional clients; Equilend is the platform that gives us post-trade data. They drop files to our S3 bucket EOD.”
 2. **Files:** “Two main files for reporting: **positions**—every loan as of EOD, with security, borrower, quantity, value, rate, collateral—and **P&L**—daily mark-to-market and income by book/desk. Both CSV, with clear schemas and validation rules.”
 3. **End objective:** “The end objective is **reporting**: Daily Positions, Exposure by Borrower, and Daily P&L in our **Angular app** for Ops, Risk, and Finance by T+1 morning.”
-4. **Who displays:** “Ops sees positions and file health; Risk sees exposure by borrower; Finance sees P&L by book. Data is synced from Redshift into an RDBMS; the Spring Boot API queries the RDBMS and serves it to the Angular app—we don't have the API hit Redshift directly.”
+4. **Who displays:** “Ops sees positions and file health; Risk sees exposure by borrower; Finance sees P&L by book. Data is synced from Snowflake into an RDBMS; the Spring Boot API queries the RDBMS and serves it to the Angular app—we don't have the API hit Snowflake directly.”
 
 ## F.2 Technical (Concrete)
 
 5. **Trigger:** “Equilend drops to S3. We use **S3 event notifications** to **SNS**, then **SQS**, so we don’t poll. Only `ObjectCreated:Complete` and only on the positions/ and mtm_pnl/ prefixes.”
-6. **Spark + Kafka:** “We use **Spark batch** (EMR or Glue) to read the file from S3, validate every field—loan_id, quantity, dates, borrower_id, etc.—and write valid rows to **curated S3** (Parquet) and to **Amazon MSK** (Kafka). **Spark Streaming** then consumes from Kafka, aggregates for reporting (e.g. by borrower, by book), and loads **Redshift** (or S3 for Athena). So we use **both Spark and Kafka**: batch for file processing, streaming for the reporting pipeline.”
-7. **Idempotency:** “We key off source + file type + file date + S3 key. We check **DynamoDB** before running the Spark job; if we already processed that file successfully, we skip. So re-drops don’t duplicate data in Redshift or Kafka.”
+6. **Spark + Kafka:** “We use **Spark batch** (EMR or Glue) to read the file from S3, validate every field—loan_id, quantity, dates, borrower_id, etc.—and write valid rows to **curated S3** (Parquet) and to **Amazon MSK** (Kafka). **Spark Streaming** then consumes from Kafka, aggregates for reporting (e.g. by borrower, by book), and loads **Snowflake** (or S3 for Athena). So we use **both Spark and Kafka**: batch for file processing, streaming for the reporting pipeline.”
+7. **Idempotency:** “We key off source + file type + file date + S3 key. We check **DynamoDB** before running the Spark job; if we already processed that file successfully, we skip. So re-drops don’t duplicate data in Snowflake or Kafka.”
 8. **Failure:** “Invalid rows go to **S3 quarantine**; invalid files or repeated failures go to **SQS DLQ**. We write an **audit** row in DynamoDB for every file (record count, reject count, status). We have an **SNS** topic and **CloudWatch** alarm so ops get notified.”
 
 ## F.3 Design Rationale (Short)
 
-9. **Why Kafka in a file workflow?** “So that reporting and other consumers see a single stream of curated data; we can add more sources later (e.g. another vendor) and still have one pipeline to Redshift and the sync that feeds the RDBMS for the Angular app. Plus it fits our goal to use **both Spark and Kafka** for reporting.”
+9. **Why Kafka in a file workflow?** “So that reporting and other consumers see a single stream of curated data; we can add more sources later (e.g. another vendor) and still have one pipeline to Snowflake. The API queries Snowflake directly. Plus it fits our goal to use **both Spark and Kafka** for reporting.”
 10. **Why Spark for the file?** “Files can be large (millions of rows) and we have non-trivial validation and transforms. Spark gives us distributed, scalable batch processing and a clear path to Spark Streaming for the Kafka side.”
 
 ---
@@ -382,30 +380,30 @@ Reporting & display (recommended production pattern)
   Loan-level rows: loan_id, trade_date, settle_date, security_id, borrower_id, quantity, loan_value_usd, rebate_rate_bps, collateral_type, collateral_value_usd, book_id, desk_id, file_date. We validate types, no duplicate loan_id, quantity > 0, settle_date >= trade_date.
 
 - **Who uses the reports?**  
-  Ops (Daily Positions), Risk (Exposure by Borrower), Finance (Daily P&L). All via the Angular app, which consumes the Spring Boot API; the API reads from the RDBMS (PostgreSQL/Aurora), which is synced from Redshift by a Glue job—not from Redshift directly.
+  Ops (Daily Positions), Risk (Exposure by Borrower), Finance (Daily P&L). All via the Angular app, which consumes the Spring Boot API; the API reads from **Snowflake** directly (JDBC + connection pooling).
 
-- **How does the Spring Boot API query the data? Does it call Redshift?**  
-  No. In the recommended production pattern, the API **does not** call Redshift. A **Glue job** (or Spark) syncs reporting aggregates from Redshift into an **RDBMS** (PostgreSQL or Aurora). The Spring Boot API queries the RDBMS via JDBC (simple SELECTs or stored procedures). Redshift stays the analytical source of truth; the RDBMS is the reporting serving layer for the UI.
+- **How does the Spring Boot API query the data? Does it call Snowflake?**  
+  No. In the recommended production pattern, the API **does not** call Snowflake. A **Glue job** (or Spark) syncs reporting aggregates from Snowflake into an **RDBMS** (PostgreSQL or Aurora). The Spring Boot API queries the RDBMS via JDBC (simple SELECTs or stored procedures). Snowflake stays the analytical source of truth; the RDBMS is the reporting serving layer for the UI.
 
-- **Why use an RDBMS? Why not keep everything in Redshift?**  
-  Redshift has limited concurrent connections and is optimized for analytical workloads, not high-frequency API traffic. The RDBMS gives many connections, indexed lookups, and sub-second response for “get this screen’s data.” We use it only for the pre-aggregated reporting tables the API needs—not as the source of truth. Stored procedures are optional when report logic is complex.
+- **Why use an RDBMS? Why not keep everything in Snowflake?**  
+  Snowflake has limited concurrent connections and is optimized for analytical workloads, not high-frequency API traffic. The RDBMS gives many connections, indexed lookups, and sub-second response for “get this screen’s data.” We use it only for the pre-aggregated reporting tables the API needs—not as the source of truth. Stored procedures are optional when report logic is complex.
 
-- **Do you recommend a Glue job to dump Redshift to RDBMS?**  
-  Yes. A **Glue job** (or scheduled Spark job) that runs after the main pipeline has loaded Redshift is the right way to sync reporting aggregates (daily_positions, exposure_by_borrower, daily_pnl) into PostgreSQL/Aurora. The API then reads from the RDBMS. This keeps Redshift for analytics and gives the UI a fast, connection-friendly serving layer.
+- **Do you recommend a Glue job to dump Snowflake to RDBMS?**  
+  Yes. A **Glue job** (or scheduled Spark job) that runs after the main pipeline has loaded Snowflake is the right way to sync reporting aggregates (daily_positions, exposure_by_borrower, daily_pnl) into PostgreSQL/Aurora. The API then reads from the RDBMS. This keeps Snowflake for analytics and gives the UI a fast, connection-friendly serving layer.
 
-- **Why not just S3 → Lambda → Redshift?**  
+- **Why not just S3 → Lambda → Snowflake?**  
   File size and complexity: Lambda has time and memory limits; validation and transforms are easier and more scalable in Spark. We also need to publish to Kafka for the streaming reporting pipeline.
 
 - **Why MSK and not Kinesis?**  
   We wanted a Kafka-compatible bus so we can use **Spark Streaming** (or Kafka Streams) with the same APIs we’re used to; MSK is managed Kafka on AWS.
 
 - **How do you avoid duplicate data when the same file is dropped twice?**  
-  Idempotency key in DynamoDB (source + file_type + file_date + s3_key). Before Spark writes to Kafka/Redshift, we check; if already SUCCESS, we skip. In Redshift we can also partition or key by file_date so overwrite is deterministic.
+  Idempotency key in DynamoDB (source + file_type + file_date + s3_key). Before Spark writes to Kafka or the warehouse (Snowflake), we check; if already SUCCESS, we skip. In the warehouse we can also partition or key by file_date (or use MERGE in Snowflake) so overwrite is deterministic.
 
 - **What if a row fails validation?**  
   We don’t fail the whole file. Valid rows go to curated S3 and Kafka; invalid rows go to S3 quarantine with the same file_date and a reject reason. Audit table has record_count and reject_count.
 
 - **What AWS services did you use?**  
-  S3 (landing, curated, quarantine), SNS, SQS, Lambda or Step Functions, EMR or Glue (Spark batch + Spark Streaming), Amazon MSK (Kafka), Redshift (analytical source of truth), **Glue job** (sync Redshift → RDBMS), **Aurora PostgreSQL or RDS** (reporting serving layer), Spring Boot API (queries RDBMS, not Redshift), Angular app, DynamoDB (audit), CloudWatch, SNS for alerts.
+  S3 (landing, curated, quarantine), SNS, SQS, Lambda or Step Functions, EMR or Glue (Spark batch + Spark Streaming), Amazon MSK (Kafka), Snowflake (source of truth for analytics and API), Spring Boot API (queries Snowflake directly; JDBC + connection pooling), Angular app, DynamoDB (audit), CloudWatch, SNS for alerts.
 
 Use this document to rehearse the **concrete** files, fields, reports, personas, and the **Spark + Kafka on AWS** flow so you can go deep in a 1-hour interview.
