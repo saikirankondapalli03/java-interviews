@@ -61,6 +61,22 @@ Process Equilend files from S3 so that **daily positions, exposure, P&L, and col
 
 ---
 
+## A.3 Why This Scale Is Believable (So the Pipeline Doesn’t Sound Overkill)
+
+**Objective:** Interviewers may have worked on Equilend or similar file-based reporting. If the business requirements don’t feel real, a big pipeline (Spark, Glue, Kafka, DynamoDB audit, etc.) sounds over-engineered. Establish believability first so the design makes sense.
+
+| What we claim | Why it’s believable (for someone who knows the domain) |
+|---------------|--------------------------------------------------------|
+| **Positions file: 10K–2M rows** | One row ≈ one loan position (security + borrower + book + terms). Large agents have tens of thousands of open loans, hundreds of counterparties, thousands of securities. 100K–500K rows/day is normal; very large or granular books can hit 1M–2M. |
+| **P&L file: 1K–100K rows** | Aggregated by book/desk/loan—still tens of thousands of rows for a large book. Enough to justify batch processing, not row-by-row in a single app. |
+| **Equilend drops files into our S3** | Equilend is a platform; they don’t run our reporting. They produce files (positions, P&L, collateral) and deliver to the client (e.g. S3 or SFTP). EOD file drops for reporting/risk/ops are standard in finance. |
+| **T+1 morning SLA** | Ops, Risk, and Finance need reports by next morning. File drops EOD; pipeline must finish in the overnight window. That’s why we need Spark (throughput), idempotency (re-drops/replays), and observability (catch failures before 6 AM). |
+
+**One line to use if they push back on “why so much?”**  
+*“The positions file can be hundreds of thousands of rows for a large book—Equilend drops the full EOD snapshot. We need distributed processing to hit T+1, and idempotency/audit because re-drops and replays happen. So the pipeline is sized for that reality.”*
+
+---
+
 # PART B: CONCRETE FILE SPECIFICATIONS (What File? What Fields?)
 
 Equilend drops files into a **landing bucket** with a known prefix. We focus on **two report types** that drive the main reporting use case.

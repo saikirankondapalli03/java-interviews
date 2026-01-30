@@ -2,6 +2,8 @@
 
 **Purpose:** What interviewers (and Solutions Architects) care about in file processing workflows: metrics, SLAs, failure modes, and nuances. Use this as the checklist when discussing each component.
 
+**Believability:** Interviewers may have worked on Equilend or similar. The Equilend scenario (10K–2M rows/file, T+1 SLA, file drops into S3) is realistic for large agency-lending books—so the pipeline (Spark, SQS, idempotency, audit) is justified, not overkill. Establish that the business problem is real before defending the design.
+
 ---
 
 ## 1. Data Engineering Metrics (What Interviewers Look At)
