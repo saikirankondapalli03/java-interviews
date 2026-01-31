@@ -138,6 +138,9 @@
                         <goals>
                             <goal>compile</goal>
                         </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/generated-sources/protobuf/java</outputDirectory>
+                        </configuration>
                     </execution>
                     <execution>
                         <id>grpc</id>
@@ -147,6 +150,7 @@
                         <configuration>
                             <pluginId>grpc-java</pluginId>
                             <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
+                            <!-- Do NOT set outputDirectory here: default (grpc-java) keeps stub separate so compile (messages) is not overwritten -->
                         </configuration>
                     </execution>
                 </executions>
@@ -157,13 +161,14 @@
                 <version>3.4.0</version>
                 <executions>
                     <execution>
-                        <id>add-grpc-sources</id>
+                        <id>add-protobuf-java</id>
                         <phase>generate-sources</phase>
                         <goals>
                             <goal>add-source</goal>
                         </goals>
                         <configuration>
                             <sources>
+                                <source>${project.build.directory}/generated-sources/protobuf/java</source>
                                 <source>${project.build.directory}/generated-sources/protobuf/grpc-java</source>
                             </sources>
                         </configuration>

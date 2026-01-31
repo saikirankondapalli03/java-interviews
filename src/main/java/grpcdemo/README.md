@@ -12,9 +12,10 @@ After going through this module you will be able to:
 
 | Location | Purpose |
 |----------|--------|
-| `src/main/java/gRpc/` | All gRPC-related **Java** code: server impl, client, main classes, this README, CHEAT-SHEET. |
+| `src/main/java/grpcdemo/` | All gRPC-related **Java** code: server impl, client, main classes, this README, CHEAT-SHEET. |
+| `src/main/java/grpcdemo/model/` | Explains where models live: **generated** from proto in package `grpc` (see model/README.md). |
 | `src/main/proto/bookstore.proto` | Protocol buffer schema (messages + service). Maven plugin expects `.proto` under `src/main/proto`. |
-| `target/generated-sources/protobuf/` | Generated Java from `.proto` (messages in `java/grpc/`, stubs in `grpc-java/grpc/`). Do not edit. |
+| `target/generated-sources/protobuf/java/grpc/` | Generated Java from `.proto` (messages + `BookstoreGrpc` stub). Do not edit. |
 
 ## How to Run
 
@@ -25,16 +26,16 @@ After going through this module you will be able to:
 
 2. **Start the server:**
    ```bash
-   mvn exec:java -Dexec.mainClass="gRpc.GrpcServerMain"
+   mvn exec:java -Dexec.mainClass="grpcdemo.GrpcServerMain"
    ```
-   Or run `gRpc.GrpcServerMain` from your IDE. Server listens on **port 9090**.
+   Or run `grpcdemo.GrpcServerMain` from your IDE. Server listens on **port 9090**.
 
 3. **Run the client:**
    In another terminal (with server running):
    ```bash
-   mvn exec:java -Dexec.mainClass="gRpc.GrpcClientMain"
+   mvn exec:java -Dexec.mainClass="grpcdemo.GrpcClientMain"
    ```
-   Or run `gRpc.GrpcClientMain` from your IDE.
+   Or run `grpcdemo.GrpcClientMain` from your IDE.
 
 4. **Optional – grpcurl (if installed):**
    ```bash
@@ -47,7 +48,7 @@ After going through this module you will be able to:
 
 - **Proto** (`bookstore.proto`): defines `Book`, `Author`, request/response messages, and `Bookstore` service with unary RPCs (GetBook, ListBooks, CreateBook, ListAuthors, CreateAuthor).
 - **Generated code**: `grpc.Book`, `grpc.Author`, `grpc.BookstoreGrpc.BookstoreImplBase` (server base), `BookstoreGrpc.newBlockingStub(channel)` (client).
-- **Your code**: `gRpc.BookstoreServiceImpl` extends `BookstoreImplBase` and implements each RPC; `GrpcServerMain` builds a Netty server and registers the service; `GrpcClientMain` uses a blocking stub to call the server.
+- **Your code**: `grpcdemo.BookstoreServiceImpl` extends `BookstoreImplBase` and implements each RPC; `GrpcServerMain` builds a Netty server and registers the service; `GrpcClientMain` uses a blocking stub to call the server.
 
 ## How to Use This for Interviews
 
@@ -57,5 +58,5 @@ After going through this module you will be able to:
 
 ## Proto Location Note
 
-- **Java and docs:** All under `src/main/java/gRpc/`.
+- **Java and docs:** All under `src/main/java/grpcdemo/`.
 - **Proto file:** Under `src/main/proto/` so the Maven protobuf plugin finds it; generated code goes to `target/generated-sources/protobuf/`. This is the usual Maven convention.

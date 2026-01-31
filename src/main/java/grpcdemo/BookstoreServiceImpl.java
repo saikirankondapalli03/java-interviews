@@ -1,6 +1,18 @@
-package gRpc;
+package grpcdemo;
 
-import grpc.*;
+import grpc.Author;
+import grpc.Book;
+import grpc.BookstoreGrpc;
+import grpc.CreateAuthorRequest;
+import grpc.CreateAuthorResponse;
+import grpc.CreateBookRequest;
+import grpc.CreateBookResponse;
+import grpc.GetBookRequest;
+import grpc.GetBookResponse;
+import grpc.ListAuthorsRequest;
+import grpc.ListAuthorsResponse;
+import grpc.ListBooksRequest;
+import grpc.ListBooksResponse;
 import io.grpc.stub.StreamObserver;
 
 import java.util.List;

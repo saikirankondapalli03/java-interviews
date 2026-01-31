@@ -1,12 +1,23 @@
-package gRpc;
+package grpcdemo;
 
-import grpc.*;
+import grpc.BookstoreGrpc;
+import grpc.CreateAuthorRequest;
+import grpc.CreateAuthorResponse;
+import grpc.CreateBookRequest;
+import grpc.CreateBookResponse;
+import grpc.ListBooksRequest;
+import grpc.ListBooksResponse;
 import io.grpc.ManagedChannel;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 
 /**
  * Simple gRPC client: creates author and book, then lists books.
  * Run GrpcServerMain first, then run this class (or use grpcurl).
+ *
+ * ListBooksResponse, CreateAuthorRequest, BookstoreGrpc, etc. are generated from
+ * src/main/proto/bookstore.proto (package grpc) by mvn generate-sources into
+ * target/generated-sources/protobuf/java. If the IDE doesn't see them: run
+ * Maven > Generate Sources and Update Folders (or Reload Project).
  */
 public class GrpcClientMain {
 

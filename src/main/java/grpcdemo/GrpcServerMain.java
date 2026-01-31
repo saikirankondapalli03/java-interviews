@@ -1,11 +1,10 @@
-package gRpc;
-
-import grpc.BookstoreGrpc;
-import io.grpc.Server;
-import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
+package grpcdemo;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
+
+import io.grpc.Server;
+import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
 
 /**
  * Starts a gRPC server on port 9090 exposing the Bookstore service.
