@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "grpc";
+option java_outer_classname = "BookstoreProto";
+
+// Interview prep: messages + service. Same domain as GraphQL (Books & Authors).
+
+message Book {
+  string id = 1;
+  string title = 2;
+  int32 page_count = 3;
+  string author_id = 4;
+}
+
+message Author {
+  string id = 1;
+  string name = 2;
+}
+
+message GetBookRequest {
+  string id = 1;
+}
+
+message GetBookResponse {
+  Book book = 1;
+}
+
+message ListBooksRequest {}
+
+message ListBooksResponse {
+  repeated Book books = 1;
+}
+
+message CreateBookRequest {
+  string title = 1;
+  int32 page_count = 2;
+  string author_id = 3;
+}
+
+message CreateBookResponse {
+  Book book = 1;
+}
+
+message ListAuthorsRequest {}
+
+message ListAuthorsResponse {
+  repeated Author authors = 1;
+}
+
+message CreateAuthorRequest {
+  string name = 1;
+}
+
+message CreateAuthorResponse {
+  Author author = 1;
+}
+
+service Bookstore {
+  rpc GetBook(GetBookRequest) returns (GetBookResponse);
+  rpc ListBooks(ListBooksRequest) returns (ListBooksResponse);
+  rpc CreateBook(CreateBookRequest) returns (CreateBookResponse);
+  rpc ListAuthors(ListAuthorsRequest) returns (ListAuthorsResponse);
+  rpc CreateAuthor(CreateAuthorRequest) returns (CreateAuthorResponse);
+}

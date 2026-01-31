@@ -1,0 +1,27 @@
+# GraphQL Schema - Interview prep (Books & Authors)
+# Concepts: types, queries, mutations, arguments, nested types, non-null, lists
+
+type Book {
+    id: ID!
+    title: String!
+    pageCount: Int
+    author: Author
+}
+
+type Author {
+    id: ID!
+    name: String!
+    books: [Book!]
+}
+
+type Query {
+    bookById(id: ID!): Book
+    allBooks: [Book!]!
+    authorById(id: ID!): Author
+    allAuthors: [Author!]!
+}
+
+type Mutation {
+    addBook(title: String!, pageCount: Int, authorId: ID!): Book!
+    addAuthor(name: String!): Author!
+}
