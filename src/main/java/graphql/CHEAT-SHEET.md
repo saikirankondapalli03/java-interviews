@@ -78,7 +78,13 @@ A: No. It’s an alternative. REST is still widely used; GraphQL fits well for f
 A: Same ideas as REST: authentication (e.g. JWT), authorization (check permissions per field or type), rate limiting, and validating query depth/complexity to prevent abuse.
 
 **Q: What is the N+1 problem in GraphQL?**  
-A: When resolving a list (e.g. 100 books), if each book’s `author` is resolved with a separate call, you get 1 + 100 calls. Fix: batching or DataLoader to batch loads by key.
+A: **What happens:** The client asks for `allBooks { id title author { name } }`. The server first runs the `allBooks` resolver (1 query/call) and gets 100 books. Then, for each book, the field resolver for `Book.author` runs. If that resolver calls `authorRepository.findById(book.getAuthorId())` once per book, you get 100 more calls—so **1 + 100 = 101** calls (N+1).  
+**Why it’s bad:** With 1,000 books you’d do 1,001 calls; each call has latency and DB load, so response time and resource usage grow with list size.  
+**Fix—batching:** Instead of loading one author per resolver invocation, collect all requested author IDs for the current “tick” and load them in one batched call (e.g. `authorRepository.findByIdIn(ids)`), then map results back to each book.  
+**Fix—DataLoader:** A DataLoader is a small utility that batches and caches per request. You register a batch function (e.g. “given these author IDs, return authors”). When the resolver calls `dataLoader.load(authorId)` for each book, the DataLoader queues the keys, runs your batch function once with all keys, and distributes the results. So you get 1 call for all books + 1 batched call for all authors (e.g. 2 calls instead of 101). Spring for GraphQL supports DataLoader; you’d inject a `DataLoaderRegistry` and use it in your `@SchemaMapping` for `Book.author`.
+**Example in this project:**
+1. **@BatchMapping** (high-level): `BookGraphQLController.author(List<Book>)` + `AuthorRepository.findByIdIn(List<String>)` — Spring wires DataLoader for you.
+2. **Explicit DataLoader** (inject + load): `DataLoaderConfig` registers batch function via `BatchLoaderRegistry.forName("authorBooks")`; `BookGraphQLController.books(Author, DataLoader<String, List<Book>>)` injects `DataLoader` and calls `authorBooks.load(author.getId())` — matches the "inject DataLoaderRegistry, use dataLoader.load()" pattern; `BookRepository.findByAuthorIdIn(List<String>)` does the batched load.
 
 **Q: What are subscriptions?**  
 A: GraphQL feature for real-time updates (e.g. WebSocket). Client subscribes; server pushes events. Not all implementations support it; Spring for GraphQL can work with RSocket/WebSocket.

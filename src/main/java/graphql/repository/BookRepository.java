@@ -37,4 +37,12 @@ public class BookRepository {
                 .filter(b -> authorId.equals(b.getAuthorId()))
                 .collect(Collectors.toList());
     }
+
+    /** Batch load books by author IDs—used by DataLoader to avoid N+1 for Author.books. */
+    public Map<String, List<Book>> findByAuthorIdIn(List<String> authorIds) {
+        if (authorIds == null || authorIds.isEmpty()) return Map.of();
+        return store.values().stream()
+                .filter(b -> b.getAuthorId() != null && authorIds.contains(b.getAuthorId()))
+                .collect(Collectors.groupingBy(Book::getAuthorId));
+    }
 }

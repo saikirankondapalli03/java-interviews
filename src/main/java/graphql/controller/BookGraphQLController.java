@@ -1,16 +1,23 @@
 package graphql.controller;
 
-import graphql.model.Author;
-import graphql.model.Book;
-import graphql.repository.AuthorRepository;
-import graphql.repository.BookRepository;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import org.dataloader.DataLoader;
 import org.springframework.graphql.data.method.annotation.Argument;
+import org.springframework.graphql.data.method.annotation.BatchMapping;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.graphql.data.method.annotation.SchemaMapping;
 import org.springframework.stereotype.Controller;
 
-import java.util.List;
+import graphql.model.Author;
+import graphql.model.Book;
+import graphql.repository.AuthorRepository;
+import graphql.repository.BookRepository;
 
 /**
  * Spring for GraphQL controller: maps schema Query/Mutation and field resolvers.
@@ -66,17 +73,29 @@ public class BookGraphQLController {
     }
 
     // ---------- Field resolvers (nested data) ----------
-    // When client requests Book.author, this resolves Author from Book
-    @SchemaMapping(typeName = "Book", field = "author")
-    public Author author(Book book) {
-        if (book.getAuthorId() == null) return null;
-        return authorRepository.findById(book.getAuthorId()).orElse(null);
+    // DataLoader fix for N+1: instead of @SchemaMapping (1 call per book), @BatchMapping
+    // collects all books and loads authors in ONE batched call via DataLoader.
+    // Query: allBooks { id title author { name } } → 1 call for books + 1 batched call for authors.
+    @BatchMapping
+    public Map<Book, Author> author(List<Book> books) {
+        List<String> authorIds = books.stream()
+                .map(Book::getAuthorId)
+                .filter(id -> id != null)
+                .distinct()
+                .collect(Collectors.toList());
+        List<Author> authors = authorRepository.findByIdIn(authorIds);
+        Map<String, Author> byId = authors.stream()
+                .collect(Collectors.toMap(Author::getId, Function.identity()));
+        return books.stream()
+                .collect(Collectors.toMap(Function.identity(), b ->
+                        b.getAuthorId() == null ? null : byId.get(b.getAuthorId())));
     }
 
-    // When client requests Author.books, this resolves list of Book from Author
+    // Explicit DataLoader: inject DataLoader, call dataLoader.load(authorId).
+    // Batches all authorIds in the request and runs one BookRepository.findByAuthorIdIn call.
     @SchemaMapping(typeName = "Author", field = "books")
-    public List<Book> books(Author author) {
-        if (author.getId() == null) return List.of();
-        return bookRepository.findByAuthorId(author.getId());
+    public CompletableFuture<List<Book>> books(Author author, DataLoader<String, List<Book>> authorBooks) {
+        if (author.getId() == null) return CompletableFuture.completedFuture(List.of());
+        return authorBooks.load(author.getId());
     }
 }

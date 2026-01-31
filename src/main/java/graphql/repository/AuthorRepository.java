@@ -31,4 +31,14 @@ public class AuthorRepository {
     public List<Author> findAll() {
         return store.values().stream().collect(Collectors.toList());
     }
+
+    /** Batch load authors by IDs—used by DataLoader to avoid N+1. */
+    public List<Author> findByIdIn(List<String> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        return ids.stream()
+                .distinct()
+                .map(store::get)
+                .filter(a -> a != null)
+                .collect(Collectors.toList());
+    }
 }
