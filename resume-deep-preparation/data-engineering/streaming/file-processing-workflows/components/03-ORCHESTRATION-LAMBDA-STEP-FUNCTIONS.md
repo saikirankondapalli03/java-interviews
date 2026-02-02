@@ -11,7 +11,7 @@
 | Aspect | Lambda | Step Functions |
 |--------|--------|----------------|
 | **Use when** | Simple: receive → check DynamoDB → start Glue → return. Job completion handled elsewhere (Glue notifies SNS, or separate process polls). | Multi-step: receive → check → start Glue → **wait** for Glue to finish → update DynamoDB → delete SQS message. Need to wait for long-running Glue. |
-| **Wait for Glue** | Lambda can't wait hours. Lambda only "starts" the job; something else must update DynamoDB. | Step Functions can **wait** for Glue job completion (callback or poll) then update DynamoDB and delete message. One workflow, clear state. |
+| **Wait for Glue** | Lambda can't wait hours. Lambda only "starts" the job; something else must update DynamoDB. | Step Functions can **wait** for Glue via EventBridge (Glue state change) → Lambda → SendTaskSuccess/SendTaskFailure; or poll get_job_run. One workflow, clear state. |
 | **Interview answer** | "We use Lambda to read SQS, check DynamoDB, start Glue, and delete the message once job is submitted. Glue on completion publishes to SNS or updates DynamoDB; we may have a second Lambda that reacts to Glue completion." | "We use Step Functions so we can wait for the Glue job to finish, then update DynamoDB and delete the SQS message in the same workflow." |
 
 **Pick one and be consistent.** For a 1-hour-deep interview, Step Functions is easier to explain end-to-end.
@@ -25,7 +25,7 @@
 ### Invoking Glue
 
 - **API:** `glue.start_job_run(JobName=..., Arguments={'--input-path': s3_uri, '--file-type': file_type, '--file-date': file_date})`. Glue runs PySpark; arguments available as `getResolvedOptions` or `sys.argv`.
-- **Async:** StartJobRun returns `JobRunId`. To wait: poll `get_job_run` or Step Functions "run job and wait for callback" (Glue sends task token when done) or EventBridge on Glue job state change.
+- **Async:** StartJobRun returns `JobRunId`. To wait: poll `get_job_run`, or Step Functions "run job and wait for callback"—**Glue does not send task tokens**; use **EventBridge** (Glue job state change) → Lambda → `SendTaskSuccess`/`SendTaskFailure` with the task token (pass token in Glue job args or store in DynamoDB keyed by JobRunId).
 
 ### Concurrency and Errors
 

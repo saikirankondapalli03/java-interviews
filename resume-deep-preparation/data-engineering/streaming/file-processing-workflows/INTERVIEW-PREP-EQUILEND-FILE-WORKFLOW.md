@@ -200,7 +200,7 @@ Equilend drops files into a **landing bucket** with a known prefix. We focus on 
 | BR-8 | Daily Loan Positions report. | **Data source:** Processed positions file (curated). **Consumers:** Ops, Risk. **Display:** Angular app – “Daily Positions” (positions by security, borrower, book; filters by date). **Metrics:** Total loan value, count of loans, top borrowers, top securities. |
 | BR-9 | Exposure by Borrower report. | **Data source:** Same positions data, aggregated by `borrower_id` (sum of `loan_value_usd`, count of loans). **Consumers:** Risk, Compliance. **Display:** Angular app “Exposure by Borrower”. **Purpose:** Concentration risk. |
 | BR-10 | Daily P&L report. | **Data source:** Processed P&L file (curated). **Consumers:** Finance, Management. **Display:** Angular app “Daily P&L” (P&L by book/desk; rebate and fee income). **Metrics:** Total P&L, P&L by book, by desk. |
-| BR-11 | Data available for ad-hoc query. | **Where:** Snowflake or Snowflake (Fidelity uses Snowflake), or S3 + Athena. **Who:** Compliance, Audit, analysts. **What:** Curated positions and P&L tables + audit table for lineage. |
+| BR-11 | Data available for ad-hoc query. | **Where:** Snowflake (Fidelity uses Snowflake), or S3 + Athena. **Who:** Compliance, Audit, analysts. **What:** Curated positions and P&L tables + audit table for lineage. |
 
 ---
 
@@ -273,7 +273,7 @@ Spark Streaming (or Glue Streaming) – STREAMING
     → consumes from MSK (equilend.positions.curated, equilend.mtm_pnl.curated)
     → aggregates (e.g. by borrower_id, by book_id) for reporting
     → sinks to:
-        (1) Snowflake or Snowflake (Fidelity) (reporting tables: daily_positions, exposure_by_borrower, daily_pnl)
+        (1) Snowflake (Fidelity) (reporting tables: daily_positions, exposure_by_borrower, daily_pnl)
         (2) or S3 (Parquet) for Athena
 
 Reporting & display (our pattern)
@@ -320,7 +320,7 @@ Reporting & display (our pattern)
 
 ### One-line for interview (API layer)
 
-“We **don’t** have the API hit Snowflake directly—Snowflake is our analytical source of truth with limited connections. A **Glue job** (or Spark) syncs the reporting aggregates from Snowflake into **PostgreSQL/Aurora**; the **Spring Boot API** queries that RDBMS via JDBC. So: Snowflake → Glue sync → RDBMS → Spring Boot → Angular. Stored procedures are optional for complex report logic; simple SELECTs are enough for the three main screens.”
+**Our design:** “The **Spring Boot API queries Snowflake directly** via JDBC with connection pooling and a small dedicated warehouse. One source of truth; no Glue sync for our scale. If we scaled up (high concurrency or strict latency), we’d add a **Glue job** to sync reporting aggregates from Snowflake into **PostgreSQL/Aurora** and have the API query that RDBMS. Stored procedures are optional for complex report logic; simple SELECTs are enough for the three main screens.”
 
 ## E.2 Why Spark (Batch) + Kafka (Streaming) Together
 
@@ -358,7 +358,7 @@ Reporting & display (our pattern)
 1. **Domain:** “Agency lending: we lend securities on behalf of institutional clients; Equilend is the platform that gives us post-trade data. They drop files to our S3 bucket EOD.”
 2. **Files:** “Two main files for reporting: **positions**—every loan as of EOD, with security, borrower, quantity, value, rate, collateral—and **P&L**—daily mark-to-market and income by book/desk. Both CSV, with clear schemas and validation rules.”
 3. **End objective:** “The end objective is **reporting**: Daily Positions, Exposure by Borrower, and Daily P&L in our **Angular app** for Ops, Risk, and Finance by T+1 morning.”
-4. **Who displays:** “Ops sees positions and file health; Risk sees exposure by borrower; Finance sees P&L by book. Data is synced from Snowflake into an RDBMS; the Spring Boot API queries the RDBMS and serves it to the Angular app—we don't have the API hit Snowflake directly.”
+4. **Who displays:** “Ops sees positions and file health; Risk sees exposure by borrower; Finance sees P&L by book. Our design: the Spring Boot API queries Snowflake directly (JDBC + connection pooling). If we scaled up we’d add a Glue sync to an RDBMS and have the API query that instead.”
 
 ## F.2 Technical (Concrete)
 
@@ -383,13 +383,13 @@ Reporting & display (our pattern)
   Ops (Daily Positions), Risk (Exposure by Borrower), Finance (Daily P&L). All via the Angular app, which consumes the Spring Boot API; the API reads from **Snowflake** directly (JDBC + connection pooling).
 
 - **How does the Spring Boot API query the data? Does it call Snowflake?**  
-  No. In the recommended production pattern, the API **does not** call Snowflake. A **Glue job** (or Spark) syncs reporting aggregates from Snowflake into an **RDBMS** (PostgreSQL or Aurora). The Spring Boot API queries the RDBMS via JDBC (simple SELECTs or stored procedures). Snowflake stays the analytical source of truth; the RDBMS is the reporting serving layer for the UI.
+  **Our design:** Yes. The API queries **Snowflake directly** via JDBC with connection pooling and a small dedicated warehouse. For our scale (internal reporting, T+1, moderate concurrency) we didn't need a separate RDBMS. **At scale:** If we hit connection limits or needed sub-200ms p95, we'd add a Glue job to sync aggregates from Snowflake into PostgreSQL/Aurora; the API would then query the RDBMS. Snowflake stays the analytical source of truth.
 
 - **Why use an RDBMS? Why not keep everything in Snowflake?**  
   Snowflake has limited concurrent connections and is optimized for analytical workloads, not high-frequency API traffic. The RDBMS gives many connections, indexed lookups, and sub-second response for “get this screen’s data.” We use it only for the pre-aggregated reporting tables the API needs—not as the source of truth. Stored procedures are optional when report logic is complex.
 
 - **Do you recommend a Glue job to dump Snowflake to RDBMS?**  
-  Yes. A **Glue job** (or scheduled Spark job) that runs after the main pipeline has loaded Snowflake is the right way to sync reporting aggregates (daily_positions, exposure_by_borrower, daily_pnl) into PostgreSQL/Aurora. The API then reads from the RDBMS. This keeps Snowflake for analytics and gives the UI a fast, connection-friendly serving layer.
+  We didn't use one for our flow—the API queries Snowflake directly. **When to add it:** If we scaled up (high API concurrency, connection limits, or strict latency), a **Glue job** (or scheduled Spark job) after the main pipeline has loaded Snowflake would sync reporting aggregates into PostgreSQL/Aurora; the API would then read from the RDBMS. That keeps Snowflake for analytics and gives the UI a fast, connection-friendly serving layer.
 
 - **Why not just S3 → Lambda → Snowflake?**  
   File size and complexity: Lambda has time and memory limits; validation and transforms are easier and more scalable in Spark. We also need to publish to Kafka for the streaming reporting pipeline.
