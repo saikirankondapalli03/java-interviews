@@ -1,0 +1,167 @@
+# Glue Interview Prep — Concepts & Design Reference
+
+**Purpose:** Study Glue and file-based ETL concepts using the **documented** file-processing-workflow design in this repo. Use this to understand how Glue fits, how ETL works in such a flow, and how to answer technical questions accurately.
+
+**How to use this doc (honestly):**  
+This material describes a **design/architecture** (Agency Lending – Equilend style) that is documented in this repo. It is **concept and reference prep**—so you can speak accurately about Glue, ETL, validation, DPUs, job args, etc. **Do not claim you built or operated this pipeline.** You can say you’ve studied this type of architecture and Glue, and that you have Spark foundations; then use these concepts to answer “what is Glue?”, “how would you design validation?”, “ETL vs ELT?”, etc.
+
+**References:**
+- `../interview/05-GLUE-PYSPARK-QUESTION-ANSWER-BANK.md`
+- `../components/05-GLUE-PYSPARK-BATCH.md`
+- `../INTERVIEW-PREP-EQUILEND-FILE-WORKFLOW.md`
+
+---
+
+## 1. Reference Architecture: Where Glue Fits
+
+The **documented** flow in this repo (for context only; not a story to claim):
+
+1. Equilend drops file to **S3** landing (`positions/`, `mtm_pnl/`).
+2. S3 `ObjectCreated:Complete` → **SNS** → **SQS**.
+3. **Orchestrator** (Lambda or Step Functions) reads SQS, checks **DynamoDB** (idempotency); if not SUCCESS, starts **Glue** job with `--input-path`, `--file-type`, `--file-date`.
+4. **Glue (PySpark)** reads CSV from S3, validates; valid rows → **curated S3** (Parquet) + **MSK** (Kafka); invalid → **quarantine** S3; updates **DynamoDB** (SUCCESS/PARTIAL/FAILED, record_count, reject_count).
+5. Spark Streaming consumes MSK, aggregates, loads **Snowflake**. Spring Boot API queries Snowflake; Angular app shows Daily Positions, Exposure by Borrower, Daily P&L.
+
+**Glue’s role in this design:**  
+The Glue job is the batch processing step: read CSV from S3 landing, validate schema and business rules in PySpark, write valid rows to curated S3 and Kafka, invalid to quarantine, update DynamoDB audit.
+
+---
+
+## 2. ETL vs ELT (Concepts to Know)
+
+| Term | Meaning |
+|------|---------|
+| **ETL** | Extract (source) → Transform **in the processing engine** (e.g. Glue/Spark) → Load (target). Transform happens **before** load. |
+| **ELT** | Extract → Load **raw** into the target (e.g. warehouse) → Transform **in the warehouse** (e.g. SQL, dbt). Transform happens **after** load, inside the target. |
+
+In the **documented** design: data is extracted from S3, transformed in Glue/PySpark, then loaded to curated S3, Kafka, and DynamoDB. So that design is **ETL** (transform in Glue, then load). ELT would be: load raw first, then transform in Snowflake or similar.
+
+**If asked “Do you know ETL/ELT?”:**  
+You can explain the difference (transform-before-load vs transform-in-warehouse) and give an example: “In a file pipeline, if you validate and curate in Glue before writing to the lake or warehouse, that’s ETL; if you load raw and then run SQL in the warehouse, that’s ELT.”
+
+---
+
+## 3. Positioning: Spark Foundations + Glue Concepts
+
+- **Spark:** You have foundations (DataFrames, partitioning, validation, writes). Glue runs PySpark, so the same concepts apply.
+- **Glue:** You’ve studied it (managed Spark, DPUs, job args, bookmarks, catalog). You can describe what it is and how such a job would be configured, without claiming production experience.
+
+**Honest way to say it:**  
+“I have a solid Spark foundation and I’ve studied Glue—managed Spark, DPUs, job parameters, how you’d pass input path and file metadata. I haven’t run Glue in production myself, but I understand how the transformation logic would work in PySpark and how you’d size and parameterize the job.”
+
+---
+
+## 4. Glue Fundamentals (Concepts)
+
+### 4.1 What is Glue? When Glue vs Lambda / EMR?
+
+| Topic | Concept |
+|-------|---------|
+| **What is Glue?** | Serverless, managed Spark (PySpark) for data integration. No cluster to manage; pay per DPU-minute. Includes Data Catalog, crawlers, and ETL jobs. |
+| **Why Glue over Lambda for large files?** | Lambda: 15 min max, 10 GB RAM. Files with millions of rows need distributed processing; Glue provides managed Spark; pay per run. |
+| **Glue vs EMR?** | Glue: fully managed, job-based, good for file/scheduled or event-triggered PySpark. EMR: you manage the cluster (or use managed scaling); more control, custom Spark/runtime. For per-file batch, Glue is often chosen for simplicity; EMR when you need custom versions or long-lived clusters. |
+
+### 4.2 DPUs and workers
+
+- **1 DPU** = 4 vCPU + 16 GB RAM. Billing: per DPU-minute.
+- **Workers:** You set worker count and type (G.1X = 1 DPU, G.2X = 2 DPU). More workers = more parallelism. For 10K–2M rows, typical starting point is 2–10 G.1X workers; tune by duration and cost.
+
+### 4.3 Job arguments (input-path, file-type, file-date)
+
+- Orchestrator passes `--input-path`, `--file-type`, `--file-date` in `Arguments` of `start_job_run`.
+- In the Glue script: `glueContext.getResolvedOptions(sys.argv, ['JOB_NAME', 'input_path', 'file_type', 'file_date'])` to read them and read only that S3 path.
+
+### 4.4 Job bookmarks
+
+- **What:** Glue can track which S3 objects were already processed; next run only new objects. Suited for **continuous** ingestion (many files over time).
+- **One-file-per-run pattern:** When each job run processes **one** file (path from job args), bookmarks are not used for “which file to read”—idempotency is usually handled at the orchestrator and an audit store (e.g. DynamoDB).
+
+---
+
+## 5. Technical Depth (Design Patterns to Discuss)
+
+### 5.1 Validation and bad rows
+
+- **Schema:** Required columns, correct types (dates, decimals parseable). Rows that fail → **quarantine** (don’t fail the whole file).
+- **Business rules (example):** No duplicate key, numeric/date constraints, non-empty keys. Implement with DataFrame filters or UDFs; split into valid vs invalid.
+- **Outcome:** Valid → curated sink(s); invalid → quarantine with reject reason; audit stores record_count and reject_count.
+
+### 5.2 Write to curated S3 without partial visibility
+
+- Write to a **staging prefix** (e.g. `_staging/`), then move/rename to the final partition so downstream (Athena, Snowflake COPY) never sees half-written data. Parquet with compression (e.g. snappy).
+
+### 5.3 Write to Kafka (MSK) from Glue
+
+- Spark Kafka connector: `df.write.format("kafka").option("kafka.bootstrap.servers", ...).option("topic", "...").save()`. Serialize rows (e.g. JSON or Avro). Idempotent producer can be used for exactly-once semantics; consumer can overwrite by partition key (e.g. file_date) for deterministic outcome.
+
+### 5.4 Update audit (e.g. DynamoDB)
+
+- At end of job: update status (SUCCESS / PARTIAL / FAILED), record_count, reject_count, processed_at, job_run_id. **Condition:** Update only if status is PENDING so a late duplicate run doesn’t overwrite SUCCESS.
+
+### 5.5 Job fails mid-run
+
+- Glue marks the run as FAILED. Audit may still be PENDING. Orchestrator or a try/except in the script can set audit to FAILED. Write order (e.g. quarantine → curated → audit) helps make partial writes recoverable (e.g. overwrite by file_date on retry).
+
+---
+
+## 6. Spark → Glue (Same Execution Model)
+
+| Spark concept | In Glue |
+|---------------|--------|
+| **SparkSession** | Provided as `spark` (and `glueContext` for Glue APIs). |
+| **Read CSV** | `spark.read.option("header", True).option("delimiter", ",").csv(s3_path)` — same. Explicit schema (StructType) is recommended for validation. |
+| **DataFrames, filters, UDFs** | Same. Validation = filters; split valid/invalid = filter or withColumn + filter. |
+| **Partitioning, Parquet, Kafka write** | Same as Spark. |
+| **Cluster** | You don’t manage a cluster; you set Glue worker count and type (DPUs). |
+
+---
+
+## 7. Schema, Catalog, and Config
+
+- **Schema:** Often in config (S3 or Parameter Store): column list, types, mandatory flags, validation rules. Glue/Spark reads at runtime so optional columns can be added without code deploy.
+- **Glue Data Catalog:** For landing CSV you might read by path (no table). For curated Parquet you create a table so Athena/downstream can query by partition.
+
+---
+
+## 8. Idempotency and Duplicate Writes
+
+- Idempotency at **orchestrator** (don’t start the same file twice). If the job does run twice: overwrite by partition key (e.g. file_date) in the warehouse and/or use idempotent Kafka producer so end state is correct.
+
+---
+
+## 9. Metrics and Evaluation (Concepts)
+
+| Metric | Why it matters |
+|--------|-----------------|
+| Job duration | SLA; right-size DPUs. |
+| DPU-minutes | Cost per run. |
+| Records read/written | Throughput; validate record_count. |
+| Reject count (audit) | Data quality; quarantine growth. |
+| Job success rate | Reliability. |
+
+**Design choices that sound solid:** Explicit path from job args when one-file-per-run; idempotency at orchestrator; schema + business rules with quarantine and reject reason; staging then commit for writes; audit update only if PENDING.
+
+---
+
+## 10. One-Page Recap (Concepts to Retain)
+
+1. **Glue:** Managed Spark (PySpark); pay per DPU-minute; no cluster to manage. Good for file-based, event-triggered or scheduled batch.
+2. **ETL in such a design:** Extract from S3 → Transform in Glue (validate, quarantine bad rows) → Load to curated S3, Kafka, audit. ELT = load raw first, transform in warehouse.
+3. **Why Glue over Lambda:** Large files need distributed processing; Glue provides managed Spark.
+4. **Job args:** input_path, file_type, file_date from orchestrator; `getResolvedOptions` in script. One-file-per-run → path from args; idempotency at orchestrator + audit.
+5. **Validation:** Schema + business rules; valid → curated + Kafka; invalid → quarantine + reason; record_count/reject_count in audit.
+6. **Curated write:** Staging prefix then move to final partition. Audit update with condition (only if PENDING).
+7. **Spark = execution:** Same PySpark APIs; Glue adds job args, DPUs, catalog, bookmarks.
+
+---
+
+## 11. Quick Links
+
+| Doc | Use |
+|-----|-----|
+| `../interview/05-GLUE-PYSPARK-QUESTION-ANSWER-BANK.md` | Q&A by section (Intro, Architecture, Technical Depth, Scenario, Metrics, Evaluation). |
+| `../components/05-GLUE-PYSPARK-BATCH.md` | Deeper nuances (Glue vs EMR, bookmarks, validation, writes, failure). |
+| `../INTERVIEW-PREP-EQUILEND-FILE-WORKFLOW.md` | Business context, file specs, end-to-end flow, resume line, talking points. |
+| `../interview/README.md` | Full flow order and index of all component Q&A banks. |
+
+**Flow order (reference):** S3 → SNS/SQS → Orchestrator → DynamoDB → **Glue** → MSK → Spark Streaming → Snowflake.
